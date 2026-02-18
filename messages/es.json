@@ -1,0 +1,29 @@
+{
+  "Dashboard": {
+    "title": "Panel de Control",
+    "welcome": "Bienvenido de nuevo",
+    "stats": {
+      "sales": "Ventas",
+      "expenses": "Gastos",
+      "cash": "Efectivo en Caja"
+    },
+    "recentActivity": "Actividad Reciente"
+  },
+  "Common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "new": "Nuevo",
+    "loading": "Cargando..."
+  },
+  "Invoices": {
+    "newInvoice": "Nueva Factura",
+    "client": "Cliente",
+    "date": "Fecha",
+    "number": "Número",
+    "total": "Total",
+    "status": "Estado",
+    "downloadPDF": "Descargar PDF"
+  }
+}
