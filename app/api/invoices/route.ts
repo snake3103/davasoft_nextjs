@@ -1,39 +1,39 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { getScopedPrisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+
+async function getOrgScoped() {
+  const session = await auth();
+  if (!session?.user) return { db: null, organizationId: null };
+  const organizationId = (session.user as any).organizationId as string | null;
+  if (!organizationId) return { db: null, organizationId: null };
+  return { db: getScopedPrisma(organizationId), organizationId };
+}
 
 export async function GET() {
+  const { db } = await getOrgScoped();
+  if (!db) return new NextResponse("Unauthorized", { status: 401 });
   try {
-    const invoices = await prisma.invoice.findMany({
-      include: {
-        client: true,
-        items: {
-          include: {
-            product: true
-          }
-        }
-      },
+    const invoices = await db.invoice.findMany({
+      include: { client: true, items: { include: { product: true } } },
       orderBy: { date: "desc" },
     });
     return NextResponse.json(invoices);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Error fetching invoices" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
+  const { db, organizationId } = await getOrgScoped();
+  if (!db || !organizationId) return new NextResponse("Unauthorized", { status: 401 });
   try {
     const body = await request.json();
-    
-    // Check if client exists
-    const client = await prisma.client.findUnique({
-      where: { id: body.clientId }
-    });
-    
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 400 });
-    }
 
-    const invoice = await prisma.invoice.create({
+    const client = await db.client.findUnique({ where: { id: body.clientId } });
+    if (!client) return NextResponse.json({ error: "Client not found" }, { status: 400 });
+
+    const invoice = await db.invoice.create({
       data: {
         number: body.number,
         date: new Date(body.date),
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         tax: body.tax,
         total: body.total,
         status: body.status || "DRAFT",
+        organizationId,
         items: {
           create: body.items.map((item: any) => ({
             productId: item.productId,
@@ -52,11 +53,8 @@ export async function POST(request: Request) {
           })),
         },
       },
-      include: {
-        items: true,
-      },
+      include: { items: true },
     });
-    
     return NextResponse.json(invoice);
   } catch (error) {
     console.error("Invoice creation error:", error);

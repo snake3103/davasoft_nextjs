@@ -1,33 +1,35 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { getScopedPrisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 
-export async function GET() {
+async function getOrgScoped() {
   const session = await auth();
-  if (!session) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  if (!session?.user) return { db: null, organizationId: null };
+  const organizationId = (session.user as any).organizationId as string | null;
+  if (!organizationId) return { db: null, organizationId: null };
+  return { db: getScopedPrisma(organizationId), organizationId };
+}
 
+export async function GET() {
+  const { db } = await getOrgScoped();
+  if (!db) return new NextResponse("Unauthorized", { status: 401 });
   try {
-    const expenses = await prisma.expense.findMany({
+    const expenses = await db.expense.findMany({
       include: { category: true },
       orderBy: { date: "desc" },
     });
     return NextResponse.json(expenses);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Error fetching expenses" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
+  const { db, organizationId } = await getOrgScoped();
+  if (!db || !organizationId) return new NextResponse("Unauthorized", { status: 401 });
   try {
     const body = await request.json();
-    const expense = await prisma.expense.create({
+    const expense = await db.expense.create({
       data: {
         number: body.number,
         date: new Date(body.date),
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
         categoryId: body.categoryId,
         total: body.total,
         status: body.status || "PENDING",
+        organizationId,
       },
       include: { category: true },
     });

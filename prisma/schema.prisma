@@ -50,6 +50,7 @@ model User {
   role          Role      @default(USER)
   accounts      Account[]
   sessions      Session[]
+  memberships   Membership[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -69,43 +70,83 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Business Models
-model Client {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?
-  phone     String?
-  address   String?
-  idNumber  String?  @unique // NIT or CC
-  invoices  Invoice[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Product {
+// Multitenancy Models
+model Organization {
   id          String   @id @default(cuid())
   name        String
-  description String?
-  price       Decimal  @db.Decimal(10, 2)
-  stock       Int      @default(0)
-  sku         String?  @unique
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id])
-  invoiceItems InvoiceItem[]
-  expenseItems ExpenseItem[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Category {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  type        CategoryType @default(PRODUCT)
+  slug        String   @unique
+  members     Membership[]
+  clients     Client[]
   products    Product[]
+  categories  Category[]
+  invoices    Invoice[]
   expenses    Expense[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role         @default(USER)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, organizationId])
+}
+
+// Business Models
+model Client {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  idNumber       String?  // NIT or CC
+  invoices       Invoice[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, idNumber])
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  price          Decimal  @db.Decimal(16, 2)
+  stock          Int      @default(0)
+  sku            String?
+  categoryId     String?
+  category       Category? @relation(fields: [categoryId], references: [id])
+  invoiceItems   InvoiceItem[]
+  expenseItems   ExpenseItem[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, sku])
+}
+
+model Category {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  type           CategoryType @default(PRODUCT)
+  products       Product[]
+  expenses       Expense[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, name])
 }
 
 enum CategoryType {
@@ -115,20 +156,24 @@ enum CategoryType {
 }
 
 model Invoice {
-  id            String      @id @default(cuid())
-  number        String      @unique
-  date          DateTime    @default(now())
-  dueDate       DateTime?
-  clientId      String
-  client        Client      @relation(fields: [clientId], references: [id])
-  items         InvoiceItem[]
-  payments      Payment[]
-  subtotal      Decimal     @db.Decimal(10, 2)
-  tax           Decimal     @db.Decimal(10, 2)
-  total         Decimal     @db.Decimal(10, 2)
-  status        InvoiceStatus @default(DRAFT)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime    @default(now())
+  dueDate        DateTime?
+  clientId       String
+  client         Client      @relation(fields: [clientId], references: [id])
+  items          InvoiceItem[]
+  payments       Payment[]
+  subtotal       Decimal     @db.Decimal(16, 2)
+  tax            Decimal     @db.Decimal(16, 2)
+  total          Decimal     @db.Decimal(16, 2)
+  status         InvoiceStatus @default(DRAFT)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@unique([organizationId, number])
 }
 
 model InvoiceItem {
@@ -138,24 +183,28 @@ model InvoiceItem {
   productId String
   product   Product @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Decimal @db.Decimal(10, 2)
-  total     Decimal @db.Decimal(10, 2)
+  price     Decimal @db.Decimal(16, 2)
+  total     Decimal @db.Decimal(16, 2)
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  number      String   @unique
-  date        DateTime @default(now())
-  provider    String   // Can be a string or linked to a 'Provider' model later
-  description String?
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-  items       ExpenseItem[]
-  payments    Payment[]
-  total       Decimal  @db.Decimal(10, 2)
-  status      ExpenseStatus @default(PENDING)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime @default(now())
+  provider       String
+  description    String?
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id])
+  items          ExpenseItem[]
+  payments       Payment[]
+  total          Decimal  @db.Decimal(16, 2)
+  status         ExpenseStatus @default(PENDING)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, number])
 }
 
 model ExpenseItem {
@@ -166,21 +215,22 @@ model ExpenseItem {
   product     Product? @relation(fields: [productId], references: [id])
   description String?
   quantity    Int
-  price       Decimal @db.Decimal(10, 2)
-  total       Decimal @db.Decimal(10, 2)
+  price       Decimal @db.Decimal(16, 2)
+  total       Decimal @db.Decimal(16, 2)
 }
 
 model Payment {
-  id          String   @id @default(cuid())
-  amount      Decimal  @db.Decimal(10, 2)
-  date        DateTime @default(now())
-  method      PaymentMethod @default(CASH)
-  invoiceId   String?
-  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
-  expenseId   String?
-  expense     Expense? @relation(fields: [expenseId], references: [id])
-  notes       String?
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  organizationId String?  // Optional for system payments, usually tied to inv/exp
+  amount         Decimal  @db.Decimal(16, 2)
+  date           DateTime @default(now())
+  method         PaymentMethod @default(CASH)
+  invoiceId      String?
+  invoice        Invoice? @relation(fields: [invoiceId], references: [id])
+  expenseId      String?
+  expense        Expense? @relation(fields: [expenseId], references: [id])
+  notes          String?
+  createdAt      DateTime @default(now())
 }
 
 enum InvoiceStatus {
@@ -203,3 +253,4 @@ enum PaymentMethod {
   CREDIT_CARD
   OTHER
 }
+

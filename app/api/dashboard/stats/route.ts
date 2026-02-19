@@ -1,43 +1,49 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import prisma, { getScopedPrisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 
 export async function GET() {
   const session = await auth();
-  if (!session) {
+  if (!session?.user) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
+  // Get oragnization from session (organizationId must be injected by auth.ts)
+  const organizationId = (session.user as any).organizationId;
+  if (!organizationId) {
+    return new NextResponse("No organization found for this user", { status: 403 });
+  }
+
+  // Use scoped client — all queries are automatically filtered by organizationId
+  const db = getScopedPrisma(organizationId);
+
   try {
-    // 1. Calculate Total Sales (sum of all PAID invoices)
-    const paidInvoices = await prisma.invoice.aggregate({
+    // 1. Total Sales (PAID invoices)
+    const paidInvoices = await db.invoice.aggregate({
       where: { status: "PAID" },
       _sum: { total: true },
     });
 
-    // 2. Calculate Total Expenses (sum of all PAID expenses)
-    const paidExpenses = await prisma.expense.aggregate({
+    // 2. Total Expenses (PAID expenses)
+    const paidExpenses = await db.expense.aggregate({
       where: { status: "PAID" },
       _sum: { total: true },
     });
 
-    // 3. Pending Receivables (sum of DRAFT, SENT, PARTIAL invoices)
-    const pendingReceivables = await prisma.invoice.aggregate({
-      where: { 
-        status: { in: ["DRAFT", "SENT", "PARTIAL"] } 
-      },
+    // 3. Pending Receivables
+    const pendingReceivables = await db.invoice.aggregate({
+      where: { status: { in: ["DRAFT", "SENT", "PARTIAL"] } },
       _sum: { total: true },
     });
 
-    // 4. Get Recent Activity (limited to 5)
-    // We'll combine invoices and expenses and sort by date
+    // 4. Recent Activity (5 items)
     const [recentInvoices, recentExpenses] = await Promise.all([
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         take: 5,
         orderBy: { createdAt: "desc" },
         include: { client: true },
       }),
-      prisma.expense.findMany({
+      db.expense.findMany({
         take: 5,
         orderBy: { createdAt: "desc" },
       }),
@@ -48,7 +54,7 @@ export async function GET() {
         id: inv.id,
         title: `Factura #${inv.number}`,
         entity: inv.client.name,
-        amount: `$${Number(inv.total).toLocaleString()}`,
+        amount: `$${Number(inv.total).toLocaleString("es-CO")}`,
         type: "Venta",
         time: inv.createdAt,
         status: inv.status,
@@ -57,12 +63,14 @@ export async function GET() {
         id: exp.id,
         title: `Gasto #${exp.number}`,
         entity: exp.provider,
-        amount: `$${Number(exp.total).toLocaleString()}`,
+        amount: `$${Number(exp.total).toLocaleString("es-CO")}`,
         type: "Gasto",
         time: exp.createdAt,
         status: exp.status,
       })),
-    ].sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+    ]
+      .sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 5);
 
     return NextResponse.json({
       totalSales: Number(paidInvoices._sum.total || 0),
