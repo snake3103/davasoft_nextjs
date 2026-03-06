@@ -34,24 +34,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // On first sign in, look up the user's organization
       if (user) {
+        token.id = user.id;
+        token.role = user.role;
+      }
+
+      // Si tenemos un usuario pero no la organización, la buscamos (útil para sesiones existentes)
+      if (token.id && !token.organizationId) {
         const membership = await prisma.membership.findFirst({
-          where: { userId: user.id },
+          where: { userId: token.id as string },
           orderBy: { createdAt: "asc" },
         });
-        token.organizationId = membership?.organizationId ?? null;
-        token.role = user.role;
-        token.id = user.id;
+        
+        if (membership) {
+          token.organizationId = membership.organizationId;
+        }
       }
+
       return token;
     },
     async session({ session, token }) {
-      // Inject organizationId and role from JWT into the session
-      if (session.user) {
+      if (session.user && token) {
+        session.user.id = token.id as string;
         session.user.organizationId = (token.organizationId as string) ?? null;
         session.user.role = (token.role as any) ?? "USER";
-        session.user.id = token.id as string;
       }
       return session;
     },

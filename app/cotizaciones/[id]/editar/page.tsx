@@ -1,27 +1,17 @@
 "use client";
 
-import { use, useEffect } from "react";
+import { use } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { EstimateForm } from "@/components/estimates/EstimateForm";
-import { useEstimate, useUpdateEstimate } from "@/hooks/useDatabase";
+import { useEstimate } from "@/hooks/useDatabase";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { updateEstimate } from "@/app/actions/estimates";
 
 export default function EditarCotizacionPage(props: { params: Promise<{ id: string }> }) {
     const params = use(props.params);
     const router = useRouter();
     const { data: estimate, isLoading } = useEstimate(params.id);
-    const updateEstimate = useUpdateEstimate();
-
-    const handleSave = async (data: any) => {
-        try {
-            await updateEstimate.mutateAsync({ id: params.id, data });
-            router.push("/cotizaciones");
-        } catch (error: any) {
-            console.error("Error updating estimate:", error);
-            alert(error.message || "Error al actualizar la cotización");
-        }
-    };
 
     if (isLoading) {
         return (
@@ -49,13 +39,14 @@ export default function EditarCotizacionPage(props: { params: Promise<{ id: stri
         );
     }
 
+    const boundUpdateAction = updateEstimate.bind(null, params.id);
+
     return (
         <AppLayout>
             <EstimateForm
                 title="Editar Cotización"
                 initialData={estimate}
-                onSave={handleSave}
-                isSubmitting={updateEstimate.isPending}
+                action={boundUpdateAction as any}
             />
         </AppLayout>
     );

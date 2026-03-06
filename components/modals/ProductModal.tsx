@@ -1,63 +1,82 @@
 "use client";
 
-import { useState } from "react";
-import { X, Package, Tag, DollarSign, Database, FileText } from "lucide-react";
+import { useState, useEffect, useActionState } from "react";
+import { X, Package, Tag, DollarSign, Database, FileText, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategorySearch } from "@/components/ui/Autocomplete";
 import { useCategories } from "@/hooks/useDatabase";
+import { createProduct, updateProduct } from "@/app/actions/products";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ProductModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (product: any) => void;
     initialData?: any;
 }
 
-export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductModalProps) {
+export function ProductModal({ isOpen, onClose, initialData }: ProductModalProps) {
     const { data: categories = [] } = useCategories();
+    const queryClient = useQueryClient();
+
+    const action = initialData
+        ? updateProduct.bind(null, initialData.id)
+        : createProduct;
+
+    const [state, formAction, isPending] = useActionState(action, null);
+
     const [formData, setFormData] = useState({
-        name: initialData?.name || "",
-        categoryId: initialData?.categoryId || "",
-        price: initialData?.price?.toString().replace(/[^0-9.]/g, '') || "",
-        stock: initialData?.stock?.toString() || "",
-        reference: initialData?.sku || initialData?.reference || "",
-        description: initialData?.description || "",
+        name: "",
+        categoryId: "",
+        price: "",
+        stock: "",
+        sku: "",
+        description: "",
     });
 
-    const [errors, setErrors] = useState<Record<string, string>>({});
-
-    const validate = () => {
-        const newErrors: Record<string, string> = {};
-        if (!formData.name) newErrors.name = "El nombre es obligatorio";
-        if (!formData.price || isNaN(parseFloat(formData.price))) newErrors.price = "Ingrese un precio válido";
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSave = () => {
-        if (validate()) {
-            onSave(formData);
+    useEffect(() => {
+        if (isOpen) {
+            setFormData({
+                name: initialData?.name || "",
+                categoryId: initialData?.categoryId || "",
+                price: initialData?.price?.toString() || "",
+                stock: initialData?.stock?.toString() || "",
+                sku: initialData?.sku || initialData?.reference || "",
+                description: initialData?.description || "",
+            });
         }
-    };
+    }, [isOpen, initialData]);
+
+    useEffect(() => {
+        if (state?.success) {
+            queryClient.invalidateQueries({ queryKey: ["products"] });
+            onClose();
+        }
+    }, [state, onClose, queryClient]);
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
+            <form action={formAction} className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in fade-in zoom-in duration-200">
                 {/* Header */}
                 <div className="px-8 py-6 border-b border-border flex items-center justify-between bg-white sticky top-0 z-10">
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">{initialData ? "Editar Producto" : "Nuevo Producto"}</h2>
                         <p className="text-sm text-slate-500">Configura los detalles de tu producto o servicio.</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors">
+                    <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors">
                         <X size={24} />
                     </button>
                 </div>
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                    {state?.error && (
+                        <div className="bg-rose-50 text-rose-600 px-4 py-2 rounded-lg text-xs font-bold border border-rose-100">
+                            {state.error}
+                        </div>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2 md:col-span-2">
                             <label className="text-sm font-bold text-slate-700 flex items-center">
@@ -65,17 +84,16 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                             </label>
                             <input
                                 type="text"
+                                name="name"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="Ej: Consultoría Pro"
-                                className={cn(
-                                    "w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all",
-                                    errors.name && "border-rose-300 bg-rose-50"
-                                )}
+                                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                required
                             />
-                            {errors.name && <p className="text-[10px] text-rose-500 font-bold ml-1 uppercase">{errors.name}</p>}
                         </div>
 
+                        <input type="hidden" name="categoryId" value={formData.categoryId} />
                         <div className="space-y-2">
                             <label className="text-sm font-bold text-slate-700 flex items-center">
                                 <Tag size={14} className="mr-2 text-primary" /> Categoría
@@ -88,7 +106,6 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                                 onSelect={(c: any) => setFormData({ ...formData, categoryId: c.id })}
                                 categories={categories.filter((c: any) => c.type === 'PRODUCT' || c.type === 'SERVICE')}
                                 placeholder="Seleccionar categoría..."
-                                error={!!errors.categoryId}
                             />
                         </div>
 
@@ -97,16 +114,15 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                                 <DollarSign size={14} className="mr-2 text-primary" /> Precio de Venta
                             </label>
                             <input
-                                type="text"
+                                type="number"
+                                name="price"
+                                step="any"
                                 value={formData.price}
                                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                                 placeholder="0.00"
-                                className={cn(
-                                    "w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all",
-                                    errors.price && "border-rose-300 bg-rose-50"
-                                )}
+                                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                required
                             />
-                            {errors.price && <p className="text-[10px] text-rose-500 font-bold ml-1 uppercase">{errors.price}</p>}
                         </div>
 
                         <div className="space-y-2">
@@ -115,6 +131,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                             </label>
                             <input
                                 type="number"
+                                name="stock"
                                 value={formData.stock}
                                 onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                                 placeholder="0"
@@ -128,8 +145,9 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                             </label>
                             <input
                                 type="text"
-                                value={formData.reference}
-                                onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                                name="sku"
+                                value={formData.sku}
+                                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                                 placeholder="REF-001"
                                 className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                             />
@@ -138,6 +156,7 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                         <div className="space-y-2 md:col-span-2">
                             <label className="text-sm font-bold text-slate-700">Descripción</label>
                             <textarea
+                                name="description"
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 placeholder="Detalles adicionales del producto..."
@@ -151,19 +170,22 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                 {/* Footer */}
                 <div className="px-8 py-6 bg-slate-50 border-t border-border flex justify-end space-x-3">
                     <button
+                        type="button"
                         onClick={onClose}
                         className="px-6 py-2.5 bg-white border border-border rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-all"
                     >
                         Cancelar
                     </button>
                     <button
-                        onClick={handleSave}
-                        className="px-8 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-primary/30 transition-all"
+                        type="submit"
+                        disabled={isPending}
+                        className="px-8 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:shadow-lg hover:shadow-primary/30 transition-all flex items-center disabled:opacity-50"
                     >
+                        {isPending ? <Loader2 size={18} className="mr-2 animate-spin" /> : null}
                         {initialData ? "Guardar Cambios" : "Guardar Producto"}
                     </button>
                 </div>
-            </div>
+            </form>
         </div>
     );
 }

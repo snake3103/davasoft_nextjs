@@ -3,24 +3,18 @@
 import { use } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ContactForm } from "@/components/contacts/ContactForm";
-import { useClient, useUpdateClient } from "@/hooks/useDatabase";
+import { useClient } from "@/hooks/useDatabase";
 import { useRouter } from "next/navigation";
 import { Loader2, AlertCircle } from "lucide-react";
+import { updateClient } from "@/app/actions/clients";
 
 export default function EditarContactoPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     const router = useRouter();
     const { data: contact, isLoading, error } = useClient(id);
-    const updateClient = useUpdateClient();
 
-    const handleSave = async (data: any) => {
-        try {
-            await updateClient.mutateAsync({ id, ...data });
-            router.push(`/contactos/${id}`);
-        } catch (error: any) {
-            alert("Error al actualizar el contacto: " + error.message);
-        }
-    };
+    // Vinculamos el ID a la acción de actualización
+    const updateClientWithId = updateClient.bind(null, id);
 
     if (isLoading) {
         return (
@@ -58,8 +52,7 @@ export default function EditarContactoPage({ params }: { params: Promise<{ id: s
             <ContactForm
                 title="Editar Contacto"
                 initialData={contact}
-                onSave={handleSave}
-                isLoading={updateClient.isPending}
+                action={updateClientWithId}
             />
         </AppLayout>
     );

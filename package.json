@@ -7,9 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest",
-    "preview": "opennextjs-cloudflare build && wrangler dev",
-    "deploy": "opennextjs-cloudflare build && wrangler deploy"
+    "test": "vitest"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
@@ -36,7 +34,6 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.16.5",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@tanstack/react-query-devtools": "^5.91.3",
@@ -56,8 +53,7 @@
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
     "typescript": "^5",
-    "vitest": "^4.0.18",
-    "wrangler": "^4.67.0"
+    "vitest": "^4.0.18"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
