@@ -61,5 +61,8 @@
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "@auth/core": "0.41.0"
   }
 }
