@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, User, Mail, Phone, MapPin, Building2, Briefcase } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ContactModalProps {
   isOpen: boolean;
@@ -15,10 +16,9 @@ export function ContactModal({ isOpen, onClose, onSave, initialData }: ContactMo
     name: initialData?.name || "",
     email: initialData?.email || "",
     phone: initialData?.phone || "",
-    type: initialData?.type || "Cliente",
-    city: initialData?.city || "",
+    type: initialData?.type || "CLIENT",
     address: initialData?.address || "",
-    nit: initialData?.nit || "",
+    idNumber: initialData?.idNumber || "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -28,6 +28,7 @@ export function ContactModal({ isOpen, onClose, onSave, initialData }: ContactMo
   const validate = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.name) newErrors.name = "El nombre es obligatorio";
+    if (!formData.idNumber) newErrors.idNumber = "La identificación es obligatoria";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -37,6 +38,12 @@ export function ContactModal({ isOpen, onClose, onSave, initialData }: ContactMo
       onSave(formData);
     }
   };
+
+  const typeOptions = [
+    { label: "Cliente", value: "CLIENT" },
+    { label: "Proveedor", value: "PROVIDER" },
+    { label: "Ambos", value: "BOTH" },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -57,16 +64,16 @@ export function ContactModal({ isOpen, onClose, onSave, initialData }: ContactMo
           <div className="space-y-4">
             <label className="text-sm font-bold text-slate-700">Tipo de contacto</label>
             <div className="flex space-x-4">
-              {["Cliente", "Proveedor", "Empleado"].map((type) => (
+              {typeOptions.map((opt) => (
                 <button
-                  key={type}
-                  onClick={() => setFormData({ ...formData, type })}
-                  className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold transition-all ${formData.type === type
+                  key={opt.value}
+                  onClick={() => setFormData({ ...formData, type: opt.value as any })}
+                  className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold transition-all ${formData.type === opt.value
                     ? "bg-primary border-primary text-white shadow-md shadow-primary/20"
                     : "bg-slate-50 border-border text-slate-500 hover:bg-slate-100"
                     }`}
                 >
-                  {type}
+                  {opt.label}
                 </button>
               ))}
             </div>
@@ -82,7 +89,7 @@ export function ContactModal({ isOpen, onClose, onSave, initialData }: ContactMo
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ej: Tech Solutions S.A.S"
-                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                className={cn("w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all", errors.name && "border-rose-300 bg-rose-50")}
               />
             </div>
             <div className="space-y-2">
@@ -91,10 +98,10 @@ export function ContactModal({ isOpen, onClose, onSave, initialData }: ContactMo
               </label>
               <input
                 type="text"
-                value={formData.nit}
-                onChange={(e) => setFormData({ ...formData, nit: e.target.value })}
+                value={formData.idNumber}
+                onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
                 placeholder="Ej: 900.123.456-7"
-                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                className={cn("w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all", errors.idNumber && "border-rose-300 bg-rose-50")}
               />
             </div>
             <div className="space-y-2">
@@ -121,19 +128,7 @@ export function ContactModal({ isOpen, onClose, onSave, initialData }: ContactMo
                 className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 flex items-center">
-                <MapPin size={14} className="mr-2 text-primary" /> Ciudad
-              </label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                placeholder="Ej: Bogotá"
-                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-              />
-            </div>
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-bold text-slate-700 flex items-center">
                 <Briefcase size={14} className="mr-2 text-primary" /> Dirección
               </label>

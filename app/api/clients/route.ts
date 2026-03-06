@@ -1,45 +1,48 @@
 import { NextResponse } from "next/server";
-import { getScopedPrisma } from "@/lib/prisma";
-import { auth } from "@/auth";
-
-async function getOrgScoped() {
-  const session = await auth();
-  if (!session?.user) return null;
-  const organizationId = (session.user as any).organizationId;
-  if (!organizationId) return null;
-  return getScopedPrisma(organizationId);
-}
+import { getAuthContext, unauthorizedResponse, errorResponse } from "@/lib/api-helpers";
+import { clientSchema } from "@/lib/schemas/client";
 
 export async function GET() {
-  const db = await getOrgScoped();
-  if (!db) return new NextResponse("Unauthorized", { status: 401 });
+  const { db } = await getAuthContext();
+  if (!db) return unauthorizedResponse();
+
   try {
     const clients = await db.client.findMany({ orderBy: { name: "asc" } });
     return NextResponse.json(clients);
-  } catch {
-    return NextResponse.json({ error: "Error fetching clients" }, { status: 500 });
+  } catch (error) {
+    console.error("Fetch clients error:", error);
+    return errorResponse("Error fetching clients");
   }
 }
 
 export async function POST(request: Request) {
-  const db = await getOrgScoped();
-  if (!db) return new NextResponse("Unauthorized", { status: 401 });
+  const { db, organizationId } = await getAuthContext();
+  if (!db || !organizationId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
-    const session = await auth();
-    const organizationId = (session!.user as any).organizationId;
+    const result = clientSchema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+    }
+
+    const { name, email, phone, address, idNumber, type } = result.data;
+
     const client = await db.client.create({
       data: {
-        name: body.name,
-        email: body.email,
-        phone: body.phone,
-        address: body.address,
-        idNumber: body.idNumber,
+        name,
+        email,
+        phone,
+        address,
+        idNumber,
+        type: type || "CLIENT",
         organizationId,
       },
     });
     return NextResponse.json(client);
-  } catch {
-    return NextResponse.json({ error: "Error creating client" }, { status: 500 });
+  } catch (error) {
+    console.error("Create client error:", error);
+    return errorResponse("Error creating client");
   }
 }

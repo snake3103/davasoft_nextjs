@@ -1,0 +1,3 @@
+module.exports=[25432,a=>{a.v({className:"inter_5972bc34-module__OU16Qa__className"})},37580,a=>{"use strict";var b=a.i(87924),c=a.i(25432);let d={className:c.default.className,style:{fontFamily:"'Inter', 'Inter Fallback'",fontStyle:"normal"}};null!=c.default.variable&&(d.variable=c.default.variable);var e=a.i(97895);function f({children:a}){return(0,b.jsx)("div",{className:(0,e.cn)(d.className,"bg-slate-100 min-h-screen"),children:a})}a.s(["default",()=>f],37580)}];
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__44c5ecaf._.js.map

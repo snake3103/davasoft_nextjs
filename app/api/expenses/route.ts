@@ -1,49 +1,83 @@
 import { NextResponse } from "next/server";
-import { getScopedPrisma } from "@/lib/prisma";
-import { auth } from "@/auth";
-
-async function getOrgScoped() {
-  const session = await auth();
-  if (!session?.user) return { db: null, organizationId: null };
-  const organizationId = (session.user as any).organizationId as string | null;
-  if (!organizationId) return { db: null, organizationId: null };
-  return { db: getScopedPrisma(organizationId), organizationId };
-}
+import { getAuthContext, unauthorizedResponse, errorResponse } from "@/lib/api-helpers";
+import { expenseSchema } from "@/lib/schemas/expense";
 
 export async function GET() {
-  const { db } = await getOrgScoped();
-  if (!db) return new NextResponse("Unauthorized", { status: 401 });
+  const { db } = await getAuthContext();
+  if (!db) return unauthorizedResponse();
+
   try {
     const expenses = await db.expense.findMany({
       include: { category: true },
       orderBy: { date: "desc" },
     });
     return NextResponse.json(expenses);
-  } catch {
-    return NextResponse.json({ error: "Error fetching expenses" }, { status: 500 });
+  } catch (error) {
+    console.error("Fetch expenses error:", error);
+    return errorResponse("Error fetching expenses");
   }
 }
 
 export async function POST(request: Request) {
-  const { db, organizationId } = await getOrgScoped();
-  if (!db || !organizationId) return new NextResponse("Unauthorized", { status: 401 });
+  const { db, organizationId } = await getAuthContext();
+  if (!db || !organizationId) return unauthorizedResponse();
+
   try {
     const body = await request.json();
-    const expense = await db.expense.create({
-      data: {
-        number: body.number,
-        date: new Date(body.date),
-        provider: body.provider,
-        categoryId: body.categoryId,
-        total: body.total,
-        status: body.status || "PENDING",
-        organizationId,
-      },
-      include: { category: true },
+    const result = expenseSchema.safeParse(body);
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+    }
+
+    const { number, date, provider, categoryId, total, status, items } = result.data;
+
+    const expense = await db.$transaction(async (tx: any) => {
+      // 1. Create the expense
+      const newExpense = await tx.expense.create({
+        data: {
+          number,
+          date: new Date(date),
+          provider,
+          categoryId,
+          total: Number(total),
+          status: status || "PAID", // Purchases are usually paid or pending
+          organizationId,
+          items: items ? {
+            create: items.map((item: any) => ({
+              productId: item.productId || null,
+              description: item.description,
+              quantity: item.quantity,
+              price: item.price,
+              total: item.total,
+            })),
+          } : undefined,
+        },
+        include: { items: true, category: true },
+      });
+
+      // 2. Adjust stock for each item that has a productId
+      if (items && items.length > 0) {
+        for (const item of items) {
+          if (item.productId) {
+            await tx.product.update({
+              where: { id: item.productId, organizationId },
+              data: {
+                stock: {
+                  increment: item.quantity,
+                },
+              },
+            });
+          }
+        }
+      }
+
+      return newExpense;
     });
+
     return NextResponse.json(expense);
   } catch (error) {
-    console.error("Expense creation error:", error);
-    return NextResponse.json({ error: "Error creating expense" }, { status: 500 });
+    console.error("Create expense error:", error);
+    return errorResponse("Error creating expense");
   }
 }

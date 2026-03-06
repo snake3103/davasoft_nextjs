@@ -5,18 +5,14 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, Download, MoreHorizontal, CheckCircle2, Clock, X, Edit, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { InvoiceModal } from "@/components/modals/InvoiceModal";
-
 import { useInvoices } from "@/hooks/useDatabase";
+import { useRouter } from "next/navigation";
 
 export default function VentasPage() {
+  const router = useRouter();
   const { data: invoices, isLoading } = useInvoices();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("Todas");
-
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<any>(null);
 
   const filteredInvoices = useMemo(() => {
     if (!invoices) return [];
@@ -31,7 +27,11 @@ export default function VentasPage() {
         (statusFilter === "Vencida" && invoice.status === "OVERDUE") || // Status to be handled
         (statusFilter === "Parcial" && invoice.status === "PARTIAL");
 
-      return matchesSearch && matchesStatus;
+      const matchesClientType = !invoice.client ||
+        invoice.client.type === "CLIENT" ||
+        invoice.client.type === "BOTH";
+
+      return matchesSearch && matchesStatus && matchesClientType;
     });
   }, [invoices, searchQuery, statusFilter]);
 
@@ -42,8 +42,7 @@ export default function VentasPage() {
   */
 
   const handleEdit = (invoice: any) => {
-    setEditingInvoice(invoice);
-    setIsModalOpen(true);
+    router.push(`/ventas/${invoice.id}/editar`);
   };
 
   const handleDelete = (id: string) => {
@@ -54,10 +53,6 @@ export default function VentasPage() {
 
   const statuses = ["Todas", "Pagada", "Abierta", "Vencida", "Parcial"];
 
-  const handleSaveInvoice = async (formData: any) => {
-    console.log("Saving invoice:", formData);
-    setIsModalOpen(false);
-  };
 
   return (
     <AppLayout>
@@ -73,7 +68,7 @@ export default function VentasPage() {
               Exportar
             </button>
             <button
-              onClick={() => { setEditingInvoice(null); setIsModalOpen(true); }}
+              onClick={() => router.push("/ventas/nueva")}
               className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center shadow-lg shadow-primary/20"
             >
               <Plus size={18} className="mr-2" />
@@ -186,12 +181,6 @@ export default function VentasPage() {
         )}
       </div>
 
-      <InvoiceModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveInvoice}
-        initialData={editingInvoice}
-      />
     </AppLayout>
   );
 }

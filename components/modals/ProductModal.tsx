@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { X, Package, Tag, DollarSign, Database, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CategorySearch } from "@/components/ui/Autocomplete";
+import { useCategories } from "@/hooks/useDatabase";
 
 interface ProductModalProps {
     isOpen: boolean;
@@ -12,12 +14,13 @@ interface ProductModalProps {
 }
 
 export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductModalProps) {
+    const { data: categories = [] } = useCategories();
     const [formData, setFormData] = useState({
         name: initialData?.name || "",
-        category: initialData?.category || "Servicios",
-        price: initialData?.price?.replace(/[^0-9.]/g, '') || "",
-        stock: initialData?.stock || "",
-        reference: initialData?.reference || "",
+        categoryId: initialData?.categoryId || "",
+        price: initialData?.price?.toString().replace(/[^0-9.]/g, '') || "",
+        stock: initialData?.stock?.toString() || "",
+        reference: initialData?.sku || initialData?.reference || "",
         description: initialData?.description || "",
     });
 
@@ -77,16 +80,16 @@ export function ProductModal({ isOpen, onClose, onSave, initialData }: ProductMo
                             <label className="text-sm font-bold text-slate-700 flex items-center">
                                 <Tag size={14} className="mr-2 text-primary" /> Categoría
                             </label>
-                            <select
-                                value={formData.category}
-                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none"
-                            >
-                                <option value="Servicios">Servicios</option>
-                                <option value="Digital">Digital</option>
-                                <option value="Hardware">Hardware</option>
-                                <option value="Otros">Otros</option>
-                            </select>
+                            <CategorySearch
+                                value={categories.find((c: any) => c.id === formData.categoryId)?.name || ""}
+                                onChange={(val: string) => {
+                                    if (!val) setFormData({ ...formData, categoryId: "" });
+                                }}
+                                onSelect={(c: any) => setFormData({ ...formData, categoryId: c.id })}
+                                categories={categories.filter((c: any) => c.type === 'PRODUCT' || c.type === 'SERVICE')}
+                                placeholder="Seleccionar categoría..."
+                                error={!!errors.categoryId}
+                            />
                         </div>
 
                         <div className="space-y-2">

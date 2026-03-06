@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import {
@@ -16,56 +16,65 @@ import {
     Edit,
     Activity,
     Calendar,
-    CreditCard
+    CreditCard,
+    Loader2,
+    Trash2
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-
-const contactData = {
-    id: "1",
-    name: "Tech Solutions S.A.S",
-    type: "Cliente",
-    nit: "900.123.456-7",
-    email: "contacto@techsolutions.com",
-    phone: "+57 300 123 4567",
-    address: "Calle 100 #15-30, Bogotá",
-    balance: "$12,450.00",
-    overdue: "$2,300.00",
-    totalSales: "$45,600.00",
-    lastSale: "15 Feb 2026",
-    status: "Activo"
-};
-
-const transactions = [
-    { id: "FAC-124", type: "Factura", date: "15 Feb 2026", amount: "$3,400.00", status: "Pagada" },
-    { id: "COT-101", type: "Cotización", date: "12 Feb 2026", amount: "$1,250.00", status: "Aceptada" },
-    { id: "FAC-118", type: "Factura", date: "01 Feb 2026", amount: "$2,300.00", status: "Vencida" },
-    { id: "PAG-089", type: "Pago", date: "28 Jan 2026", amount: "$1,500.00", status: "Completado" },
-];
+import { useClient, useDeleteClient, useUpdateClient } from "@/hooks/useDatabase";
+import { useRouter } from "next/navigation";
 
 export default function ContactDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
+    const router = useRouter();
+    const { data: contact, isLoading, error } = useClient(id);
+    const deleteClient = useDeleteClient();
+    const updateClient = useUpdateClient();
+
+    if (isLoading) return <AppLayout><div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin text-primary" size={40} /></div></AppLayout>;
+    if (error || !contact) return <AppLayout><div className="p-8 text-center text-rose-500 font-bold">Error al cargar el contacto</div></AppLayout>;
+
+    const handleDelete = async () => {
+        if (confirm("¿Estás seguro de que deseas eliminar este contacto? Esta acción no se puede deshacer.")) {
+            try {
+                await deleteClient.mutateAsync(id);
+                router.push("/contactos");
+            } catch (err: any) {
+                alert("Error al eliminar: " + err.message);
+            }
+        }
+    };
+
+    // Placeholder for real transaction logic
+    const transactions: any[] = [];
 
     return (
         <AppLayout>
             <div className="space-y-6">
                 {/* Back Button and Actions */}
                 <div className="flex items-center justify-between">
-                    <Link
-                        href="/contactos"
+                    <button
+                        onClick={() => router.back()}
                         className="flex items-center text-sm font-bold text-slate-500 hover:text-primary transition-colors"
                     >
                         <ArrowLeft size={18} className="mr-2" />
                         Volver a Contactos
-                    </Link>
+                    </button>
                     <div className="flex items-center space-x-3">
-                        <button className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors">
-                            <MoreVertical size={20} />
+                        <button
+                            onClick={handleDelete}
+                            className="p-2 hover:bg-rose-50 rounded-xl text-slate-400 hover:text-rose-500 transition-colors"
+                        >
+                            <Trash2 size={20} />
                         </button>
-                        <button className="px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors flex items-center">
+                        <Link
+                            href={`/contactos/${id}/editar`}
+                            className="px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors flex items-center"
+                        >
                             <Edit size={16} className="mr-2" />
                             Editar
-                        </button>
+                        </Link>
                         <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center shadow-lg shadow-primary/20">
                             <FileText size={16} className="mr-2" />
                             Estado de Cuenta
@@ -82,10 +91,19 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                                     <Building2 size={40} />
                                 </div>
                                 <div>
-                                    <h1 className="text-3xl font-black text-slate-800 tracking-tight">{contactData.name}</h1>
+                                    <div className="flex items-center gap-3">
+                                        <h1 className="text-3xl font-black text-slate-800 tracking-tight">{contact.name}</h1>
+                                        <span className={cn(
+                                            "text-[10px] font-black uppercase tracking-tighter px-3 py-1 rounded-full",
+                                            contact.type === 'CLIENT' ? "bg-blue-50 text-blue-600" :
+                                                contact.type === 'PROVIDER' ? "bg-amber-50 text-amber-600" :
+                                                    "bg-purple-50 text-purple-600"
+                                        )}>
+                                            {contact.type === 'CLIENT' ? 'Cliente' : contact.type === 'PROVIDER' ? 'Proveedor' : 'Ambos'}
+                                        </span>
+                                    </div>
                                     <div className="flex items-center mt-1 space-x-2 text-slate-500">
-                                        <span className="text-sm font-bold bg-slate-100 px-3 py-1 rounded-full">{contactData.type}</span>
-                                        <span className="text-sm border-l border-slate-300 pl-2">NIT: {contactData.nit}</span>
+                                        <span className="text-sm">NIT/Identificación: <span className="font-bold text-slate-700">{contact.idNumber || 'Sin registrar'}</span></span>
                                     </div>
                                 </div>
                             </div>
@@ -93,15 +111,15 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4 border-t border-slate-100">
                                 <div className="flex items-center text-sm text-slate-600">
                                     <Mail size={16} className="mr-3 text-slate-400" />
-                                    {contactData.email}
+                                    {contact.email || 'Sin correo registrado'}
                                 </div>
                                 <div className="flex items-center text-sm text-slate-600">
                                     <Phone size={16} className="mr-3 text-slate-400" />
-                                    {contactData.phone}
+                                    {contact.phone || 'Sin teléfono registrado'}
                                 </div>
                                 <div className="flex items-center text-sm text-slate-600">
                                     <MapPin size={16} className="mr-3 text-slate-400" />
-                                    {contactData.address}
+                                    {contact.address || 'Sin dirección registrada'}
                                 </div>
                             </div>
                         </div>
@@ -109,15 +127,15 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                         <div className="w-full lg:w-72 bg-slate-50 rounded-[2rem] p-6 border border-slate-100 space-y-4">
                             <div>
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Pendiente</p>
-                                <p className="text-3xl font-black text-slate-800">{contactData.balance}</p>
+                                <p className="text-3xl font-black text-slate-800">$0.00</p>
                             </div>
                             <div className="pt-4 border-t border-slate-200">
                                 <div className="flex justify-between items-center text-xs">
                                     <span className="text-slate-500 font-bold">Vencido</span>
-                                    <span className="text-rose-600 font-bold">{contactData.overdue}</span>
+                                    <span className="text-rose-600 font-bold">$0.00</span>
                                 </div>
                                 <div className="mt-2 h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                                    <div className="h-full bg-rose-500 w-[18%]"></div>
+                                    <div className="h-full bg-rose-500 w-[0%]"></div>
                                 </div>
                             </div>
                         </div>
@@ -126,10 +144,10 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard icon={Activity} label="Ventas Totales" value={contactData.totalSales} color="bg-emerald-500" />
-                    <StatCard icon={Calendar} label="Última Venta" value={contactData.lastSale} color="bg-blue-500" />
-                    <StatCard icon={Clock} label="Facturas Vencidas" value="2" color="bg-rose-500" />
-                    <StatCard icon={CreditCard} label="Pago Promedio" value="12 días" color="bg-amber-500" />
+                    <StatCard icon={Activity} label="Ventas Totales" value="$0.00" color="bg-emerald-500" />
+                    <StatCard icon={Calendar} label="Última Venta" value="N/A" color="bg-blue-500" />
+                    <StatCard icon={Clock} label="Facturas Vencidas" value="0" color="bg-rose-500" />
+                    <StatCard icon={CreditCard} label="Pago Promedio" value="N/A" color="bg-amber-500" />
                 </div>
 
                 {/* Transactions Section */}
@@ -139,48 +157,44 @@ export default function ContactDetailsPage({ params }: { params: Promise<{ id: s
                             <History className="mr-2 text-primary" size={20} />
                             Historial de Transacciones
                         </h2>
-                        <div className="flex items-center space-x-2">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Filtrar por:</span>
-                            <select className="bg-slate-50 border-none text-xs font-bold text-slate-600 rounded-lg py-1 px-2 focus:ring-0">
-                                <option>Todos</option>
-                                <option>Facturas</option>
-                                <option>Pagos</option>
-                                <option>Cotizaciones</option>
-                            </select>
+                    </div>
+                    {transactions.length > 0 ? (
+                        <Table headers={["ID", "Tipo", "Fecha", "Monto", "Estado", "Acción"]}>
+                            {transactions.map((t) => (
+                                <TableRow key={t.id}>
+                                    <TableCell className="font-bold text-primary">{t.id}</TableCell>
+                                    <TableCell>{t.type}</TableCell>
+                                    <TableCell>{t.date}</TableCell>
+                                    <TableCell className="font-bold">{t.amount}</TableCell>
+                                    <TableCell>
+                                        <span className={cn(
+                                            "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter",
+                                            t.status === "Pagada" || t.status === "Completado" || t.status === "Aceptada"
+                                                ? "bg-emerald-50 text-emerald-600"
+                                                : "bg-rose-50 text-rose-600"
+                                        )}>
+                                            {t.status}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <button className="text-slate-400 hover:text-primary transition-colors">
+                                            <FileText size={16} />
+                                        </button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </Table>
+                    ) : (
+                        <div className="p-12 text-center space-y-4">
+                            <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300">
+                                <History size={32} />
+                            </div>
+                            <p className="text-slate-400 text-sm font-medium italic">Este contacto no tiene transacciones registradas.</p>
                         </div>
-                    </div>
-                    <Table headers={["ID", "Tipo", "Fecha", "Monto", "Estado", "Acción"]}>
-                        {transactions.map((t) => (
-                            <TableRow key={t.id}>
-                                <TableCell className="font-bold text-primary">{t.id}</TableCell>
-                                <TableCell>{t.type}</TableCell>
-                                <TableCell>{t.date}</TableCell>
-                                <TableCell className="font-bold">{t.amount}</TableCell>
-                                <TableCell>
-                                    <span className={cn(
-                                        "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tighter",
-                                        t.status === "Pagada" || t.status === "Completado" || t.status === "Aceptada"
-                                            ? "bg-emerald-50 text-emerald-600"
-                                            : "bg-rose-50 text-rose-600"
-                                    )}>
-                                        {t.status}
-                                    </span>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <button className="text-slate-400 hover:text-primary transition-colors">
-                                        <FileText size={16} />
-                                    </button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </Table>
-                    <div className="px-8 py-4 bg-slate-50 border-t border-border text-center">
-                        <button className="text-xs font-bold text-primary hover:underline">
-                            Ver todas las transacciones
-                        </button>
-                    </div>
+                    )}
                 </div>
             </div>
+
         </AppLayout>
     );
 }

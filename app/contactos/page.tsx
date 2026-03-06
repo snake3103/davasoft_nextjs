@@ -6,51 +6,41 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, UserCircle, Mail, Phone, MoreHorizontal, UserCheck, X, Edit, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ContactModal } from "@/components/modals/ContactModal";
-
-import { useClients } from "@/hooks/useDatabase";
+import { useClients, useDeleteClient } from "@/hooks/useDatabase";
 
 export default function ContactosPage() {
-  const { data: contacts, isLoading } = useClients();
+  const { data: contacts = [], isLoading } = useClients();
+  const deleteClient = useDeleteClient();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todos");
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingContact, setEditingContact] = useState<any>(null);
-
   const filteredContacts = useMemo(() => {
-    if (!contacts) return [];
     return contacts.filter((contact: any) => {
       const matchesSearch =
         contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        contact.email.toLowerCase().includes(searchQuery.toLowerCase());
+        (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesType = typeFilter === "Todos" ||
-        (typeFilter === "Cliente" && contact.type === "CLIENT") || // Adjust labels
-        (typeFilter === "Proveedor" && contact.type === "PROVIDER");
+        (typeFilter === "Cliente" && contact.type === "CLIENT") ||
+        (typeFilter === "Proveedor" && contact.type === "PROVIDER") ||
+        (typeFilter === "Ambos" && contact.type === "BOTH");
 
       return matchesSearch && matchesType;
     });
   }, [contacts, searchQuery, typeFilter]);
 
-  const handleSaveContact = async (formData: any) => {
-    console.log("Saving contact:", formData);
-    setIsModalOpen(false);
-  };
-
-  const handleEdit = (contact: any) => {
-    setEditingContact(contact);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: string) => {
     if (confirm("¿Estás seguro de que deseas eliminar este contacto?")) {
-      // Deletion logic
+      try {
+        await deleteClient.mutateAsync(id);
+      } catch (error: any) {
+        alert("Error al eliminar el contacto: " + error.message);
+      }
     }
   };
 
-  const types = ["Todos", "Cliente", "Proveedor", "Empleado"];
+  const types = ["Todos", "Cliente", "Proveedor", "Ambos"];
 
   return (
     <AppLayout>
@@ -61,13 +51,13 @@ export default function ContactosPage() {
             <p className="text-slate-500 mt-1">Administra tus clientes, proveedores y prospectos.</p>
           </div>
           <div className="flex items-center space-x-3">
-            <button
-              onClick={() => { setEditingContact(null); setIsModalOpen(true); }}
+            <Link
+              href="/contactos/nuevo"
               className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center shadow-lg shadow-primary/20"
             >
               <Plus size={18} className="mr-2" />
               Nuevo Contacto
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -121,8 +111,13 @@ export default function ContactosPage() {
                         {contact.name}
                       </Link>
                       <div className="mt-0.5">
-                        <span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold uppercase">
-                          {contact.type === "CLIENT" ? "Cliente" : "Proveedor"}
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded font-bold uppercase",
+                          contact.type === "CLIENT" ? "bg-blue-50 text-blue-600" :
+                            contact.type === "PROVIDER" ? "bg-amber-50 text-amber-600" :
+                              "bg-purple-50 text-purple-600"
+                        )}>
+                          {contact.type === "CLIENT" ? "Cliente" : contact.type === "PROVIDER" ? "Proveedor" : "Ambos"}
                         </span>
                       </div>
                     </div>
@@ -148,13 +143,13 @@ export default function ContactosPage() {
                 <TableCell className="font-bold text-slate-600 text-sm">$0.00</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end space-x-2">
-                    <button
-                      onClick={() => handleEdit(contact)}
-                      className="p-1.5 hover:bg-blue-50 hover:text-primary rounded-lg text-slate-400 transition-colors"
+                    <Link
+                      href={`/contactos/${contact.id}/editar`}
+                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
                       title="Editar"
                     >
                       <Edit size={16} />
-                    </button>
+                    </Link>
                     <button
                       onClick={() => handleDelete(contact.id)}
                       className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400 transition-colors"
@@ -178,12 +173,6 @@ export default function ContactosPage() {
         )}
       </div>
 
-      <ContactModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveContact}
-        initialData={editingContact}
-      />
     </AppLayout>
   );
 }

@@ -1,0 +1,151 @@
+.
+├── PRODUCCION.md
+├── README.md
+├── __tests__
+│   └── invoice.test.ts
+├── app
+│   ├── api
+│   │   ├── auth
+│   │   │   └── [...nextauth]
+│   │   │       └── route.ts
+│   │   ├── clients
+│   │   │   └── route.ts
+│   │   ├── dashboard
+│   │   │   └── stats
+│   │   │       └── route.ts
+│   │   ├── expenses
+│   │   │   └── route.ts
+│   │   ├── invoices
+│   │   │   └── route.ts
+│   │   ├── products
+│   │   │   └── route.ts
+│   │   └── search
+│   │       └── route.ts
+│   ├── bancos
+│   │   ├── conciliacion
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   └── transferencia
+│   │       └── page.tsx
+│   ├── configuracion
+│   │   ├── correos
+│   │   │   └── page.tsx
+│   │   ├── impuestos
+│   │   │   └── page.tsx
+│   │   ├── moneda
+│   │   │   └── page.tsx
+│   │   ├── numeraciones
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   ├── perfil
+│   │   │   └── page.tsx
+│   │   ├── plantillas
+│   │   │   └── page.tsx
+│   │   ├── roles
+│   │   │   └── page.tsx
+│   │   └── usuarios
+│   │       └── page.tsx
+│   ├── contactos
+│   │   ├── [id]
+│   │   │   └── page.tsx
+│   │   ├── nuevo
+│   │   │   └── page.tsx
+│   │   └── page.tsx
+│   ├── cotizaciones
+│   │   └── page.tsx
+│   ├── favicon.ico
+│   ├── gastos
+│   │   ├── nuevo
+│   │   │   └── page.tsx
+│   │   └── page.tsx
+│   ├── globals.css
+│   ├── ingresos
+│   │   └── nuevo
+│   │       └── page.tsx
+│   ├── inventario
+│   │   ├── nuevo
+│   │   │   └── page.tsx
+│   │   └── page.tsx
+│   ├── layout.tsx
+│   ├── login
+│   │   └── page.tsx
+│   ├── page.tsx
+│   ├── pos
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   └── ventas
+│       ├── nueva
+│       │   └── page.tsx
+│       └── page.tsx
+├── auth.config.ts
+├── auth.ts
+├── components
+│   ├── Providers.tsx
+│   ├── dashboard
+│   │   └── TransactionModal.tsx
+│   ├── layout
+│   │   ├── AppLayout.tsx
+│   │   ├── Header.tsx
+│   │   └── Sidebar.tsx
+│   ├── modals
+│   │   ├── CheckoutModal.tsx
+│   │   ├── ContactModal.tsx
+│   │   ├── ExpenseModal.tsx
+│   │   ├── InvoiceModal.tsx
+│   │   ├── ProductModal.tsx
+│   │   ├── QuoteModal.tsx
+│   │   └── ReceiptModal.tsx
+│   ├── providers
+│   │   └── QueryProvider.tsx
+│   └── ui
+│       └── Table.tsx
+├── eslint.config.mjs
+├── estructura.txt
+├── hooks
+│   └── useDatabase.ts
+├── lib
+│   ├── config.ts
+│   ├── decimal.utils.ts
+│   ├── invoice-action.example.ts
+│   ├── prisma.ts
+│   ├── schemas
+│   │   └── invoice.ts
+│   └── utils.ts
+├── messages
+│   └── es.json
+├── next-env.d.ts
+├── next.config.ts
+├── open-next.config.ts
+├── package-lock.json
+├── package.json
+├── playwright-report
+│   └── index.html
+├── playwright.config.ts
+├── postcss.config.mjs
+├── prisma
+│   ├── migrations
+│   │   ├── 20260218174534_phase6_data_integration
+│   │   │   └── migration.sql
+│   │   └── migration_lock.toml
+│   ├── schema.prisma
+│   └── seed.ts
+├── prisma.config.ts
+├── proxy.ts
+├── public
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── vercel.svg
+│   └── window.svg
+├── store
+│   └── useStore.ts
+├── test-results
+├── tests
+│   └── auth.spec.ts
+├── tsconfig.json
+├── tsconfig.tsbuildinfo
+├── vitest.config.ts
+├── vitest.setup.ts
+└── wrangler.toml
+
+57 directories, 92 files

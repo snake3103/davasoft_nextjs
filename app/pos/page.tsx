@@ -20,6 +20,7 @@ import Link from "next/link";
 import { ReceiptModal } from "@/components/modals/ReceiptModal";
 import { CheckoutModal } from "@/components/modals/CheckoutModal";
 
+import { ContactSearch } from "@/components/ui/Autocomplete";
 import { useProducts, useClients, useCreateInvoice } from "@/hooks/useDatabase";
 
 const categories = ["Todos", "Servicios", "Digital", "Hardware"];
@@ -63,37 +64,48 @@ export default function PosPage() {
    };
 
    const completeCheckout = async (payments: any[]) => {
-      if (!selectedClientId && clients && clients.length > 0) {
-         // Fallback to first client if none selected
-         setSelectedClientId(clients[0].id);
+      let currentClientId = selectedClientId;
+      if (!currentClientId && clients && clients.length > 0) {
+         currentClientId = clients[0].id;
+         setSelectedClientId(currentClientId);
+      }
+
+      if (!currentClientId) {
+         alert("Por favor selecciona un cliente antes de finalizar.");
+         return;
       }
 
       const orderNumber = `POS-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 
+      const payload = {
+         number: orderNumber,
+         date: new Date().toISOString(),
+         clientId: currentClientId,
+         subtotal: Number(total / 1.19),
+         tax: Number(total - (total / 1.19)),
+         total: Number(total),
+         status: "PAID" as const,
+         items: cart.map(item => ({
+            productId: item.id,
+            quantity: Number(item.quantity),
+            price: Number(item.price),
+            total: Number(item.price * item.quantity),
+            description: item.name
+         }))
+      };
+
+      console.log("POS - Attempting to check out with payload:", payload);
+
       try {
-         await createInvoice.mutateAsync({
-            number: orderNumber,
-            date: new Date().toISOString(),
-            clientId: selectedClientId || (clients && clients[0]?.id),
-            subtotal: total / 1.19,
-            tax: total - (total / 1.19),
-            total: total,
-            status: "PAID",
-            items: cart.map(item => ({
-               productId: item.id,
-               quantity: item.quantity,
-               price: item.price,
-               total: item.price * item.quantity
-            }))
-         });
+         await createInvoice.mutateAsync(payload);
 
          setPaymentMethods(payments);
          setIsCheckoutOpen(false);
          setCurrentOrderId(orderNumber);
          setIsReceiptOpen(true);
-      } catch (error) {
+      } catch (error: any) {
          console.error("Error completing checkout:", error);
-         alert("Hubo un error al procesar la venta. Por favor intenta de nuevo.");
+         alert(`Hubo un error al procesar la venta: ${error.message || "Error desconocido"}`);
       }
    };
 
@@ -174,16 +186,15 @@ export default function PosPage() {
                      <div className="p-2 bg-white rounded-xl shadow-sm">
                         <User size={18} className="text-slate-500" />
                      </div>
-                     <select
-                        value={selectedClientId}
-                        onChange={(e) => setSelectedClientId(e.target.value)}
-                        className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer"
-                     >
-                        <option value="">Seleccionar Cliente</option>
-                        {clients?.map((c: any) => (
-                           <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
-                     </select>
+                     <ContactSearch
+                        value={clients?.find((c: any) => c.id === selectedClientId)?.name || ""}
+                        contacts={clients?.filter((c: any) => c.type === "CLIENT" || c.type === "BOTH") || []}
+                        onChange={(val: string) => {
+                           if (!val) setSelectedClientId("");
+                        }}
+                        onSelect={(c: any) => setSelectedClientId(c.id)}
+                        placeholder="Buscar cliente..."
+                     />
                   </div>
                </div>
             </div>

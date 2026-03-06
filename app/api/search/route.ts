@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { getScopedPrisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session) {
+  if (!session?.user) {
     return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  const organizationId = session.user.organizationId;
+  if (!organizationId) {
+    return new NextResponse("Forbidden: No organization found", { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -15,9 +20,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ results: [] });
   }
 
+  // Use scoped client — all queries are automatically filtered by organizationId
+  const db = getScopedPrisma(organizationId);
+
   try {
     const [clients, invoices, products] = await Promise.all([
-      prisma.client.findMany({
+      db.client.findMany({
         where: {
           OR: [
             { name: { contains: query, mode: "insensitive" } },
@@ -27,14 +35,14 @@ export async function GET(request: Request) {
         },
         take: 5,
       }),
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         where: {
           number: { contains: query, mode: "insensitive" },
         },
         include: { client: true },
         take: 5,
       }),
-      prisma.product.findMany({
+      db.product.findMany({
         where: {
           OR: [
             { name: { contains: query, mode: "insensitive" } },
@@ -58,7 +66,7 @@ export async function GET(request: Request) {
         title: `Factura #${i.number}`,
         subtitle: i.client.name,
         type: "invoice",
-        href: `/ventas`, // We can refine this if we have absolute invoice view
+        href: `/ventas`, 
       })),
       ...products.map((p: any) => ({
         id: p.id,

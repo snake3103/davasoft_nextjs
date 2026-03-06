@@ -1,21 +1,9 @@
 import { NextResponse } from "next/server";
-import prisma, { getScopedPrisma } from "@/lib/prisma";
-import { auth } from "@/auth";
+import { getAuthContext, unauthorizedResponse, errorResponse } from "@/lib/api-helpers";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
-
-  // Get oragnization from session (organizationId must be injected by auth.ts)
-  const organizationId = (session.user as any).organizationId;
-  if (!organizationId) {
-    return new NextResponse("No organization found for this user", { status: 403 });
-  }
-
-  // Use scoped client — all queries are automatically filtered by organizationId
-  const db = getScopedPrisma(organizationId);
+  const { db } = await getAuthContext();
+  if (!db) return unauthorizedResponse();
 
   try {
     // 1. Total Sales (PAID invoices)
@@ -50,7 +38,7 @@ export async function GET() {
     ]);
 
     const recentActivity = [
-      ...recentInvoices.map((inv: any) => ({
+      ...recentInvoices.map((inv) => ({
         id: inv.id,
         title: `Factura #${inv.number}`,
         entity: inv.client.name,
@@ -59,7 +47,7 @@ export async function GET() {
         time: inv.createdAt,
         status: inv.status,
       })),
-      ...recentExpenses.map((exp: any) => ({
+      ...recentExpenses.map((exp) => ({
         id: exp.id,
         title: `Gasto #${exp.number}`,
         entity: exp.provider,
@@ -69,7 +57,7 @@ export async function GET() {
         status: exp.status,
       })),
     ]
-      .sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
       .slice(0, 5);
 
     return NextResponse.json({
@@ -81,6 +69,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Dashboard stats error:", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    return errorResponse("Internal Server Error");
   }
 }

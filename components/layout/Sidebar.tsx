@@ -24,6 +24,7 @@ const menuItems = [
   { icon: Home, label: "Inicio", href: "/" },
   { icon: ShoppingCart, label: "Ventas", href: "/ventas" },
   { icon: FileText, label: "Cotizaciones", href: "/cotizaciones" },
+  { icon: ShoppingBag, label: "Compras", href: "/compras" }, // Added Compras
   { icon: CreditCard, label: "Gastos", href: "/gastos" },
   { icon: Users, label: "Contactos", href: "/contactos" },
   { icon: Package, label: "Inventario", href: "/inventario" },

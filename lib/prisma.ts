@@ -2,83 +2,94 @@ import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 
-// Base Prisma Client with adapter
-const globalForPrisma = global as unknown as { prismaClient: PrismaClient };
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const connectionString = process.env.DATABASE_URL;
+const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool);
 
-const baseClient = globalForPrisma.prismaClient ?? new PrismaClient({ adapter });
+const globalForPrisma = global as unknown as { prismaClient: PrismaClient };
+
+export const prisma =
+  (process.env.NODE_ENV === "development" ? null : globalForPrisma.prismaClient) ??
+  new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  });
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prismaClient = baseClient;
+  globalForPrisma.prismaClient = prisma;
 }
 
-export default baseClient;
+export default prisma;
 
-/**
- * Creates an organization-scoped Prisma client that automatically filters
- * all queries by the given organizationId.
- *
- * Usage in Server Actions / API Routes:
- *
- *   import { getScopedPrisma } from "@/lib/prisma";
- *   const db = getScopedPrisma(session.user.organizationId);
- *   const invoices = await db.invoice.findMany(); // auto-filtered by org
- */
+const GLOBAL_MODELS = [
+  "User",
+  "Account",
+  "Session",
+  "VerificationToken",
+  "Organization",
+  "Membership",
+  "InvoiceItem", // Model holds reference through parent
+  "EstimateItem", // Model holds reference through parent
+  "ExpenseItem", // Model holds reference through parent
+  "Payment",     // Model holds reference through parent
+];
+
+const MODELS_WITH_ORG = [
+  "Client",
+  "Product",
+  "Category",
+  "Invoice",
+  "Estimate",
+  "Expense",
+];
+
 export function getScopedPrisma(organizationId: string) {
-  return baseClient.$extends({
+  return prisma.$extends({
     query: {
-      client: {
-        $allOperations({ args, query }: any) {
-          if (args.where !== undefined) {
-            args.where = { ...args.where, organizationId };
-          } else if (["create", "upsert"].includes(args.operationType)) {
-            if (args.data) args.data = { ...args.data, organizationId };
+      $allModels: {
+        async $allOperations({ model, operation, args, query }: any) {
+          // console.log(`Prisma Op: ${model}.${operation}`); // Temporary debug
+          
+          // 1. Skip if model doesn't have organizationId or is in global list
+          if (!MODELS_WITH_ORG.includes(model)) {
+            return query(args);
           }
-          return query(args);
-        },
-      },
-      product: {
-        $allOperations({ args, query }: any) {
-          if (args.where !== undefined) {
-            args.where = { ...args.where, organizationId };
-          } else if (["create", "upsert"].includes(args.operationType)) {
-            if (args.data) args.data = { ...args.data, organizationId };
+
+          // 2. Handle Filters (findMany, updateMany, deleteMany, findFirst, aggregate, count)
+          if (['findMany', 'findFirst', 'count', 'aggregate', 'groupBy', 'updateMany', 'deleteMany'].includes(operation)) {
+            if (args) {
+              args.where = { ...args.where, organizationId };
+            }
+          } 
+          
+          // 3. Handle Creations (create, upsert)
+          if (operation === "create" || operation === "upsert") {
+            if (args.data) {
+              args.data = { ...args.data, organizationId };
+            }
           }
-          return query(args);
-        },
-      },
-      invoice: {
-        $allOperations({ args, query }: any) {
-          if (args.where !== undefined) {
-            args.where = { ...args.where, organizationId };
-          } else if (["create", "upsert"].includes(args.operationType)) {
-            if (args.data) args.data = { ...args.data, organizationId };
+
+          // 4. Handle Massive Creations
+          if (operation === "createMany") {
+            if (Array.isArray(args.data)) {
+              args.data = args.data.map((item: any) => ({
+                ...item,
+                organizationId,
+              }));
+            } else if (args.data) {
+              args.data = { ...args.data, organizationId };
+            }
           }
-          return query(args);
-        },
-      },
-      expense: {
-        $allOperations({ args, query }: any) {
-          if (args.where !== undefined) {
-            args.where = { ...args.where, organizationId };
-          } else if (["create", "upsert"].includes(args.operationType)) {
-            if (args.data) args.data = { ...args.data, organizationId };
-          }
-          return query(args);
-        },
-      },
-      category: {
-        $allOperations({ args, query }: any) {
-          if (args.where !== undefined) {
-            args.where = { ...args.where, organizationId };
-          } else if (["create", "upsert"].includes(args.operationType)) {
-            if (args.data) args.data = { ...args.data, organizationId };
-          }
+
+          // Note: for findUnique, update, delete we don't automatically inject organizationId
+          // because it would break Prisma's requirement for unique identifiers in 'where'.
+          // Security for these should be handled by checking the result or using findFirst/updateMany.
+
           return query(args);
         },
       },
     },
   });
 }
+
+export type ScopedPrisma = ReturnType<typeof getScopedPrisma>;

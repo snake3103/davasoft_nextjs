@@ -3,30 +3,25 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
-import { Plus, Search, Filter, Download, MoreHorizontal, CheckCircle2, Clock, X, Edit, Trash } from "lucide-react";
+import { Plus, Search, Filter, Download, X, Edit, Trash, CheckCircle2, Clock, Ban, AlertCircle, Loader2, FileCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QuoteModal } from "@/components/modals/QuoteModal";
-
-const initialQuotes = [
-    { id: "COT-101", client: "Tech Solutions S.A.S", date: "17 Feb 2026", expiryDate: "17 Mar 2026", total: "$1,250.00", status: "Aceptada" },
-    { id: "COT-102", client: "Almacenes Éxito", date: "16 Feb 2026", expiryDate: "16 Mar 2026", total: "$890.00", status: "Pendiente" },
-    { id: "COT-103", client: "Inversiones Globales SAS", date: "15 Feb 2026", expiryDate: "15 Mar 2026", total: "$2,400.00", status: "Vencida" },
-];
+import { useEstimates, useDeleteEstimate, useConvertToInvoice } from "@/hooks/useDatabase";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function CotizacionesPage() {
-    const [quotes, setQuotes] = useState(initialQuotes);
+    const router = useRouter();
+    const { data: quotes = [], isLoading } = useEstimates();
+    const deleteEstimate = useDeleteEstimate();
+    const convertToInvoice = useConvertToInvoice();
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("Todas");
 
-    // Modal state
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingQuote, setEditingQuote] = useState<any>(null);
-
     const filteredQuotes = useMemo(() => {
-        return quotes.filter((quote) => {
+        return quotes.filter((quote: any) => {
             const matchesSearch =
-                quote.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                quote.client.toLowerCase().includes(searchQuery.toLowerCase());
+                quote.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                quote.client?.name.toLowerCase().includes(searchQuery.toLowerCase());
 
             const matchesStatus = statusFilter === "Todas" || quote.status === statusFilter;
 
@@ -34,42 +29,28 @@ export default function CotizacionesPage() {
         });
     }, [quotes, searchQuery, statusFilter]);
 
-    const handleSaveQuote = (formData: any) => {
-        if (editingQuote) {
-            setQuotes(quotes.map(q => q.id === editingQuote.id ? {
-                ...q,
-                client: formData.client,
-                date: formData.date,
-                expiryDate: formData.expiryDate,
-                total: `$${formData.items.reduce((acc: any, item: any) => acc + (item.quantity * item.price), 0).toLocaleString()}`
-            } : q));
-        } else {
-            const newQuote = {
-                id: `COT-${Math.floor(Math.random() * 900) + 100}`,
-                client: formData.client || "Cliente Nuevo",
-                date: formData.date,
-                expiryDate: formData.expiryDate || formData.date,
-                total: `$${formData.items.reduce((acc: any, item: any) => acc + (item.quantity * item.price), 0).toLocaleString()}`,
-                status: "Pendiente"
-            };
-            setQuotes([newQuote, ...quotes]);
-        }
-        setIsModalOpen(false);
-        setEditingQuote(null);
-    };
-
-    const handleEdit = (quote: any) => {
-        setEditingQuote(quote);
-        setIsModalOpen(true);
-    };
-
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (confirm("¿Estás seguro de que deseas eliminar esta cotización?")) {
-            setQuotes(quotes.filter(q => q.id !== id));
+            try {
+                await deleteEstimate.mutateAsync(id);
+            } catch (error) {
+                alert("Error al eliminar la cotización");
+            }
         }
     };
 
-    const statuses = ["Todas", "Pendiente", "Aceptada", "Vencida"];
+    const statuses = ["Todas", "DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"];
+
+    const getStatusLabel = (status: string) => {
+        const labels: Record<string, string> = {
+            DRAFT: "Borrador",
+            SENT: "Enviada",
+            ACCEPTED: "Aceptada",
+            REJECTED: "Rechazada",
+            EXPIRED: "Vencida"
+        };
+        return labels[status] || status;
+    };
 
     return (
         <AppLayout>
@@ -84,13 +65,13 @@ export default function CotizacionesPage() {
                             <Download size={18} className="mr-2" />
                             Exportar
                         </button>
-                        <button
-                            onClick={() => { setEditingQuote(null); setIsModalOpen(true); }}
+                        <Link
+                            href="/cotizaciones/nueva"
                             className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center shadow-lg shadow-primary/20"
                         >
                             <Plus size={18} className="mr-2" />
                             Nueva Cotización
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
@@ -127,42 +108,67 @@ export default function CotizacionesPage() {
                                             : "text-slate-500 hover:text-slate-700"
                                     )}
                                 >
-                                    {status}
+                                    {status === "Todas" ? "Todas" : getStatusLabel(status)}
                                 </button>
                             ))}
                         </div>
                     </div>
                 </div>
 
-                {filteredQuotes.length > 0 ? (
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                    </div>
+                ) : filteredQuotes.length > 0 ? (
                     <Table headers={["Número", "Cliente", "Fecha", "Validez", "Total", "Estado", "Acciones"]}>
-                        {filteredQuotes.map((quote) => (
+                        {filteredQuotes.map((quote: any) => (
                             <TableRow key={quote.id}>
-                                <TableCell className="font-bold text-primary">{quote.id}</TableCell>
-                                <TableCell className="font-medium text-slate-700">{quote.client}</TableCell>
-                                <TableCell>{quote.date}</TableCell>
-                                <TableCell>{quote.expiryDate}</TableCell>
-                                <TableCell className="font-bold">{quote.total}</TableCell>
+                                <TableCell className="font-bold text-primary">{quote.number}</TableCell>
+                                <TableCell className="font-medium text-slate-700">{quote.client?.name}</TableCell>
+                                <TableCell>{new Date(quote.date).toLocaleDateString()}</TableCell>
+                                <TableCell>{quote.dueDate ? new Date(quote.dueDate).toLocaleDateString() : 'N/A'}</TableCell>
+                                <TableCell className="font-bold">${Number(quote.total).toLocaleString()}</TableCell>
                                 <TableCell>
                                     <div className={cn(
                                         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
-                                        quote.status === "Aceptada" ? "bg-emerald-50 text-emerald-600" :
-                                            quote.status === "Pendiente" ? "bg-blue-50 text-blue-600" : "bg-rose-50 text-rose-600"
+                                        quote.status === "ACCEPTED" ? "bg-emerald-50 text-emerald-600" :
+                                            quote.status === "REJECTED" ? "bg-rose-50 text-rose-600" :
+                                                quote.status === "EXPIRED" ? "bg-slate-50 text-slate-400" :
+                                                    quote.status === "SENT" ? "bg-blue-50 text-blue-600" : "bg-amber-50 text-amber-600"
                                     )}>
-                                        {quote.status === "Aceptada" && <CheckCircle2 size={12} className="mr-1" />}
-                                        {quote.status === "Pendiente" && <Clock size={12} className="mr-1" />}
-                                        {quote.status}
+                                        {quote.status === "ACCEPTED" && <CheckCircle2 size={12} className="mr-1" />}
+                                        {quote.status === "REJECTED" && <Ban size={12} className="mr-1" />}
+                                        {quote.status === "EXPIRED" && <AlertCircle size={12} className="mr-1" />}
+                                        {quote.status === "SENT" && <Clock size={12} className="mr-1" />}
+                                        {getStatusLabel(quote.status)}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end space-x-2">
                                         <button
-                                            onClick={() => handleEdit(quote)}
+                                            onClick={async () => {
+                                                if (confirm("¿Deseas convertir esta cotización en una factura?")) {
+                                                    try {
+                                                        await convertToInvoice.mutateAsync(quote.id);
+                                                        router.push("/ventas");
+                                                    } catch (err: any) {
+                                                        alert(err.message);
+                                                    }
+                                                }
+                                            }}
+                                            className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-slate-400 transition-colors"
+                                            title="Facturar"
+                                            disabled={convertToInvoice.isPending || quote.status === "ACCEPTED"}
+                                        >
+                                            <FileCheck size={16} />
+                                        </button>
+                                        <Link
+                                            href={`/cotizaciones/${quote.id}/editar`}
                                             className="p-1.5 hover:bg-blue-50 hover:text-primary rounded-lg text-slate-400 transition-colors"
                                             title="Editar"
                                         >
                                             <Edit size={16} />
-                                        </button>
+                                        </Link>
                                         <button
                                             onClick={() => handleDelete(quote.id)}
                                             className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400 transition-colors"
@@ -191,13 +197,6 @@ export default function CotizacionesPage() {
                     </div>
                 )}
             </div>
-
-            <QuoteModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={handleSaveQuote}
-                initialData={editingQuote}
-            />
         </AppLayout>
     );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2, Calendar, User, FileText, Loader2, Search, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ContactSearch } from "@/components/ui/Autocomplete";
 
 // ─── Product Autocomplete ─────────────────────────────────────────────────────
 interface ProductSearchProps {
@@ -264,31 +265,23 @@ export function InvoiceModal({ isOpen, onClose, onSave, initialData }: InvoiceMo
               <label className="text-sm font-bold text-slate-700 flex items-center">
                 <User size={16} className="mr-2 text-primary" /> Cliente
               </label>
-              {loadingClients ? (
-                <div className="flex items-center text-slate-400 text-sm py-3">
-                  <Loader2 size={16} className="animate-spin mr-2" /> Cargando clientes...
-                </div>
-              ) : (
-                <select
-                  value={formData.clientId}
-                  onChange={(e) => {
-                    setFormData({ ...formData, clientId: e.target.value });
-                    if (errors.clientId) setErrors({ ...errors, clientId: "" });
-                  }}
-                  className={cn(
-                    "w-full bg-slate-50 border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all",
-                    errors.clientId ? "border-rose-400" : "border-border"
-                  )}
-                >
-                  <option value="">Seleccionar cliente...</option>
-                  {clients.map((c: any) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                      {c.idNumber ? ` — ${c.idNumber}` : ""}
-                    </option>
-                  ))}
-                </select>
-              )}
+              <ContactSearch
+                value={clients.find((c: any) => c.id === formData.clientId)?.name || ""}
+                contacts={clients.filter((c: any) => c.type === "CLIENT" || c.type === "BOTH")}
+                onChange={(val: string) => {
+                  if (!val) setFormData({ ...formData, clientId: "" });
+                }}
+                onSelect={(c: any) => {
+                  setFormData({ ...formData, clientId: c.id });
+                  if (errors.clientId) {
+                    const newErrors = { ...errors };
+                    delete newErrors.clientId;
+                    setErrors(newErrors);
+                  }
+                }}
+                error={!!errors.clientId}
+                placeholder="Buscar o seleccionar cliente..."
+              />
               {errors.clientId && (
                 <p className="text-xs text-rose-500">{errors.clientId}</p>
               )}
