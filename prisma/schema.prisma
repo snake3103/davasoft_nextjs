@@ -73,6 +73,7 @@ model Organization {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
+  plan        SubscriptionPlan @default(FREE)
   members     Membership[]
   clients     Client[]
   products    Product[]
@@ -82,6 +83,12 @@ model Organization {
   expenses    Expense[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
 }
 
 model Membership {

@@ -1,14 +1,21 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { registerCompany } from "@/app/actions/auth";
-import { Loader2, Store, User, Mail, Lock } from "lucide-react";
+import { Loader2, Store, User, Mail, Lock, Check } from "lucide-react";
 
 export default function RegisterPage() {
     const router = useRouter();
     const [state, formAction, isPending] = useActionState(registerCompany, null);
+    const [selectedPlan, setSelectedPlan] = useState("FREE");
+
+    const plans = [
+        { id: "FREE", name: "Gratis", price: "$0", desc: "Para iniciar" },
+        { id: "PRO", name: "Pro", price: "$29", desc: "El más popular" },
+        { id: "ENTERPRISE", name: "Empresarial", price: "$99", desc: "Todo ilimitado" }
+    ];
 
     useEffect(() => {
         if (state?.success) {
@@ -111,6 +118,37 @@ export default function RegisterPage() {
                                     />
                                 </div>
                                 <p className="mt-1.5 text-xs text-slate-400">Mínimo 6 caracteres.</p>
+                            </div>
+                        </div>
+
+                        {/* Selección de Planes */}
+                        <div className="pt-2">
+                            <label className="text-sm font-bold text-slate-700 mb-3 block">Elige tu Plan</label>
+                            <input type="hidden" name="plan" value={selectedPlan} />
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {plans.map((plan) => (
+                                    <div
+                                        key={plan.id}
+                                        onClick={() => setSelectedPlan(plan.id)}
+                                        className={`cursor-pointer rounded-xl border p-3 flex flex-col relative transition-all duration-200 ${selectedPlan === plan.id
+                                                ? "bg-primary/5 border-primary shadow-sm shadow-primary/10"
+                                                : "bg-white border-slate-200 hover:border-slate-300"
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className={`font-bold text-sm ${selectedPlan === plan.id ? "text-primary" : "text-slate-700"}`}>
+                                                {plan.name}
+                                            </span>
+                                            {selectedPlan === plan.id && (
+                                                <div className="absolute top-3 right-3 bg-primary rounded-full p-0.5">
+                                                    <Check strokeWidth={3} size={12} className="text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-lg font-black text-slate-800 mb-0.5">{plan.price}<span className="text-xs text-slate-400 font-medium ml-0.5">/mes</span></span>
+                                        <span className="text-[10px] text-slate-500 font-medium">{plan.desc}</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 

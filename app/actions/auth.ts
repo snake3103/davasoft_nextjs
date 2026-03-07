@@ -11,6 +11,7 @@ export async function registerCompany(prevState: any, formData: FormData) {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
       password: formData.get("password") as string,
+      plan: formData.get("plan") as string || "FREE",
     };
 
     const result = registerSchema.safeParse(rawData);
@@ -18,7 +19,7 @@ export async function registerCompany(prevState: any, formData: FormData) {
       return { error: result.error.issues[0].message };
     }
 
-    const { companyName, name, email, password } = result.data;
+    const { companyName, name, email, password, plan } = result.data;
 
     // 1. Check si el usuario ya existe
     const existingUser = await prisma.user.findUnique({
@@ -50,6 +51,7 @@ export async function registerCompany(prevState: any, formData: FormData) {
         data: {
           name: companyName,
           slug,
+          plan: plan as any,
         },
       });
 
