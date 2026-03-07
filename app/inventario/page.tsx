@@ -13,12 +13,6 @@ export default function InventarioPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
 
-  const handleSaveProduct = async (formData: any) => {
-    console.log("Saving product:", formData);
-    setIsModalOpen(false);
-    setEditingProduct(null);
-  };
-
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -129,7 +123,6 @@ export default function InventarioPage() {
       <ProductModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveProduct}
         initialData={editingProduct}
       />
     </AppLayout>

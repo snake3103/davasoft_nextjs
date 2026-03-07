@@ -42,8 +42,8 @@ async function main() {
     } else {
       console.log("User already has memberships.");
     }
-  } catch (err) {
-    console.error("Error:", err.message);
+  } catch (err: any) {
+    console.error("Error:", err?.message || err);
   } finally {
     await prisma.$disconnect();
   }
