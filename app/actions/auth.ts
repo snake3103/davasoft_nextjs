@@ -70,7 +70,7 @@ export async function registerCompany(prevState: any, formData: FormData) {
         data: {
           userId: user.id,
           organizationId: organization.id,
-          role: "ADMIN",
+          systemRole: "ADMIN",
         },
       });
     });

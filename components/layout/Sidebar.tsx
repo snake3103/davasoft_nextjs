@@ -21,40 +21,43 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { signOut } from "next-auth/react";
 
+import { useSession } from "next-auth/react";
+import { PERMISSIONS, hasPermission } from "@/lib/permissions";
+
 const menuGroups = [
   {
     title: "Principal",
     items: [
       { icon: Home, label: "Inicio", href: "/" },
-      { icon: Store, label: "Punto de Venta", href: "/pos", isSpecial: true },
+      { icon: Store, label: "Punto de Venta", href: "/pos", isSpecial: true, permission: PERMISSIONS.POS_ACCESS },
     ]
   },
   {
     title: "Comercial",
     items: [
-      { icon: ShoppingCart, label: "Ventas (Facturas)", href: "/ventas" },
-      { icon: FileText, label: "Cotizaciones", href: "/cotizaciones" },
-      { icon: Users, label: "Contactos", href: "/contactos" },
+      { icon: ShoppingCart, label: "Ventas (Facturas)", href: "/ventas", permission: PERMISSIONS.SALES_VIEW },
+      { icon: FileText, label: "Cotizaciones", href: "/cotizaciones", permission: PERMISSIONS.ESTIMATES_VIEW },
+      { icon: Users, label: "Contactos", href: "/contactos", permission: PERMISSIONS.CONTACTS_VIEW },
     ]
   },
   {
     title: "Operaciones",
     items: [
-      { icon: ShoppingBag, label: "Compras", href: "/compras" },
-      { icon: CreditCard, label: "Gastos", href: "/gastos" },
-      { icon: Package, label: "Inventario", href: "/inventario" },
+      { icon: ShoppingBag, label: "Compras", href: "/compras", permission: PERMISSIONS.PURCHASES_VIEW },
+      { icon: CreditCard, label: "Gastos", href: "/gastos", permission: PERMISSIONS.PURCHASES_VIEW },
+      { icon: Package, label: "Inventario", href: "/inventario", permission: PERMISSIONS.INVENTORY_VIEW },
     ]
   },
   {
     title: "Finanzas",
     items: [
-      { icon: Banknote, label: "Bancos", href: "/bancos" },
+      { icon: Banknote, label: "Bancos", href: "/bancos", permission: PERMISSIONS.FINANCE_VIEW },
     ]
   },
   {
     title: "Sistema",
     items: [
-      { icon: Settings, label: "Configuración", href: "/configuracion" },
+      { icon: Settings, label: "Configuración", href: "/configuracion", permission: PERMISSIONS.CONFIG_VIEW },
     ]
   }
 ];
@@ -62,6 +65,17 @@ const menuGroups = [
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  const user = session?.user;
+
+  // Filtrar grupos de menú basado en permisos del usuario
+  const authorizedMenuGroups = menuGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => !item.permission || hasPermission(user as any, item.permission as any))
+    }))
+    .filter(group => group.items.length > 0);
 
   return (
     <aside
@@ -86,7 +100,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-6 scrollbar-thin scrollbar-thumb-slate-200">
-        {menuGroups.map((group, idx) => (
+        {authorizedMenuGroups.map((group, idx) => (
           <div key={idx} className="space-y-1.5 flex flex-col items-center sm:items-stretch">
             <p className={cn(
               "px-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest transition-all duration-300",
@@ -94,7 +108,8 @@ export function Sidebar() {
             )}>
               {group.title}
             </p>
-            {group.items.map((item) => {
+            {group.items.map((rawItem) => {
+              const item = rawItem as any;
               const isActive = pathname === item.href;
               return (
                 <Link

@@ -33,31 +33,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
       }
 
       // Si tenemos un usuario pero no la organización, la buscamos (útil para sesiones existentes)
-      if (token.id && !token.organizationId) {
+      if (token.id && (!token.organizationId || !token.systemRole)) {
+        // @ts-ignore - Prisma cache might take a while to update the types for `role` and `systemRole`
         const membership = await prisma.membership.findFirst({
           where: { userId: token.id as string },
           orderBy: { createdAt: "asc" },
-        });
+          include: { role: true } // Fetch Custom Role
+        }) as any;
         
         if (membership) {
           token.organizationId = membership.organizationId;
+          token.systemRole = membership.systemRole;
+          token.rolePermissions = membership.role?.permissions || [];
         }
+      }
+
+      if (trigger === "update" && session) {
+         token = { ...token, ...session }
       }
 
       return token;
     },
-    async session({ session, token }) {
+    async session({ session, token }: any) {
       if (session.user && token) {
         session.user.id = token.id as string;
         session.user.organizationId = (token.organizationId as string) ?? null;
         session.user.role = (token.role as any) ?? "USER";
+        session.user.systemRole = token.systemRole as string;
+        session.user.rolePermissions = token.rolePermissions as string[];
       }
       return session;
     },

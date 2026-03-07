@@ -45,7 +45,7 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
-  role          Role      @default(USER)
+  role          SystemRole @default(USER)
   accounts      Account[]
   sessions      Session[]
   memberships   Membership[]
@@ -53,7 +53,7 @@ model User {
   updatedAt     DateTime  @updatedAt
 }
 
-enum Role {
+enum SystemRole {
   ADMIN
   CONTADOR
   VENDEDOR
@@ -81,6 +81,7 @@ model Organization {
   invoices    Invoice[]
   estimates   Estimate[]
   expenses    Expense[]
+  roles       Role[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -91,13 +92,35 @@ enum SubscriptionPlan {
   ENTERPRISE
 }
 
+model Role {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  permissions    String[]     // E.g., ["sales:view", "sales:create", "contacts:view"]
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    Membership[] // Users who hold this role
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([name, organizationId])
+}
+
 model Membership {
   id             String       @id @default(cuid())
   userId         String
   organizationId String
-  role           Role         @default(USER)
+  
+  // The original enum field is replaced by 'systemRole'
+  systemRole     SystemRole   @default(USER)
+  
+  // Optional, as a user might not have a custom role assigned
+  roleId         String? 
+  
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull) // Relation to the new Role model
+  
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

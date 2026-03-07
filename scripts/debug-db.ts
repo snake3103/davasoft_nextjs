@@ -39,7 +39,7 @@ async function main() {
       }
     } else {
       user.memberships.forEach((m, i) => {
-        console.log(`⭐ Membership ${i + 1}: Org "${m.organization.name}" (ID: ${m.organizationId}) - Role: ${m.role}`);
+        console.log(`⭐ Membership ${i + 1}: Org "${m.organization.name}" (ID: ${m.organizationId}) - Role: ${m.systemRole}`);
       });
     }
 

@@ -36,7 +36,7 @@ async function main() {
       memberships: {
         create: {
           organizationId: org.id,
-          role: "ADMIN",
+          systemRole: "ADMIN",
         },
       },
     },
