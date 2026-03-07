@@ -12,8 +12,8 @@ export const invoiceItemSchema = z.object({
 export const invoiceSchema = z.object({
   clientId: z.string().min(1, "Debes seleccionar un cliente"),
   number: z.string().min(1, "El número de factura es requerido"),
-  date: z.string().or(z.date()),
-  dueDate: z.string().or(z.date()).optional().nullable(),
+  date: z.coerce.date(),
+  dueDate: z.coerce.date().optional().nullable(),
   items: z.array(invoiceItemSchema).min(1, "Debe haber al menos un ítem"),
   subtotal: z.coerce.number().optional(),
   tax: z.coerce.number().optional(),

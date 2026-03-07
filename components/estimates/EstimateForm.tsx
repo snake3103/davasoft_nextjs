@@ -147,7 +147,7 @@ export function EstimateForm({ initialData, action, title }: EstimateFormProps) 
     useEffect(() => {
         if (state?.success) {
             queryClient.invalidateQueries({ queryKey: ["estimates"] });
-            router.push("/ventas/cotizaciones");
+            router.push("/cotizaciones");
         }
     }, [state, router, queryClient]);
 
