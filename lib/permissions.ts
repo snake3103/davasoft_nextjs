@@ -144,18 +144,29 @@ export interface AppSessionUser {
 
 /**
  * Función centralizada para evaluar si un usuario tiene un permiso específico.
- * - Siempre retorna `true` si es ADMIN_SYSTEM (un rol legacy poderoso si se requiere)
- * - Retorna `true` si permissions[] incluye "*" o el permiso clave exigido.
+ * 
+ * Reglas de acceso (en orden de prioridad):
+ * 1. ADMIN en `systemRole` = acceso total
+ * 2. ADMIN en `role` (campo legacy del User) = acceso total
+ * 3. Si NO tiene un customRole asignado (rolePermissions vacío/undefined) = acceso total
+ *    (backward compatibility: usuarios sin rol personalizado conservan acceso completo)
+ * 4. Si tiene rolePermissions con "*" = acceso total
+ * 5. Verifica si el permiso específico está en rolePermissions
  */
 export function hasPermission(user: AppSessionUser | undefined | null, requiredPermission: PermissionKey | "*"): boolean {
   if (!user) return false;
   
-  // Permiso de SystemRole o Súper Usuario (legacy/compatibilidad). 
-  // "ADMIN" tiene pase directo.
+  // SystemRole ADMIN = pase directo
   if (user.systemRole === "ADMIN") return true;
 
-  if (!user.rolePermissions || !Array.isArray(user.rolePermissions)) {
-    return false;
+  // Legacy User.role ADMIN = pase directo
+  if ((user as any).role === "ADMIN") return true;
+
+  // Si el usuario NO tiene rolePermissions asignados (no se le ha asignado un Custom Role),
+  // le damos acceso total para mantener backward compatibility.
+  // Solo se restringe cuando explícitamente se le asigna un rol con permisos específicos.
+  if (!user.rolePermissions || user.rolePermissions.length === 0) {
+    return true;
   }
 
   // Verifica si tiene comodín global

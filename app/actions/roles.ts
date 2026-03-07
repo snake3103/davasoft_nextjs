@@ -104,3 +104,24 @@ export async function deleteRole(roleId: string) {
     return { error: "Error al eliminar el rol." };
   }
 }
+
+// Asignar (o quitar) un rol personalizado a un miembro de la organización
+export async function assignRoleToMember(membershipId: string, roleId: string | null) {
+  try {
+    const session = await auth();
+    if (!session?.user?.organizationId) {
+      return { error: "No autorizado." };
+    }
+
+    await prisma.membership.update({
+      where: { id: membershipId },
+      data: { roleId: roleId || null },
+    });
+
+    revalidatePath("/configuracion/usuarios");
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error asignando rol:", error);
+    return { error: "Error al asignar el rol." };
+  }
+}
