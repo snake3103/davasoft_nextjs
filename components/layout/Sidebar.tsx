@@ -15,49 +15,58 @@ import {
   ShoppingBag,
   FileText,
   LogOut,
-  Store
+  Store,
+  BookOpen,
+  DollarSign,
+  HelpCircle,
+  ArrowUpRight
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { signOut } from "next-auth/react";
 
 import { useSession } from "next-auth/react";
-import { PERMISSIONS, hasPermission } from "@/lib/permissions";
 
 const menuGroups = [
   {
     title: "Principal",
     items: [
       { icon: Home, label: "Inicio", href: "/" },
-      { icon: Store, label: "Punto de Venta", href: "/pos", isSpecial: true, permission: PERMISSIONS.POS_ACCESS },
+      { icon: Store, label: "Punto de Venta", href: "/pos", isSpecial: true },
+      { icon: DollarSign, label: "Caja", href: "/caja" },
     ]
   },
   {
     title: "Comercial",
     items: [
-      { icon: ShoppingCart, label: "Ventas (Facturas)", href: "/ventas", permission: PERMISSIONS.SALES_VIEW },
-      { icon: FileText, label: "Cotizaciones", href: "/cotizaciones", permission: PERMISSIONS.ESTIMATES_VIEW },
-      { icon: Users, label: "Contactos", href: "/contactos", permission: PERMISSIONS.CONTACTS_VIEW },
+      { icon: ShoppingCart, label: "Ventas (Facturas)", href: "/ventas" },
+      { icon: FileText, label: "Cotizaciones", href: "/cotizaciones" },
+      { icon: Users, label: "Contactos", href: "/contactos" },
     ]
   },
   {
     title: "Operaciones",
     items: [
-      { icon: ShoppingBag, label: "Compras", href: "/compras", permission: PERMISSIONS.PURCHASES_VIEW },
-      { icon: CreditCard, label: "Gastos", href: "/gastos", permission: PERMISSIONS.PURCHASES_VIEW },
-      { icon: Package, label: "Inventario", href: "/inventario", permission: PERMISSIONS.INVENTORY_VIEW },
+      { icon: ShoppingBag, label: "Compras", href: "/compras" },
+      { icon: CreditCard, label: "Gastos", href: "/gastos" },
+      { icon: Package, label: "Inventario", href: "/inventario" },
     ]
   },
   {
     title: "Finanzas",
     items: [
-      { icon: Banknote, label: "Bancos", href: "/bancos", permission: PERMISSIONS.FINANCE_VIEW },
+      { icon: Banknote, label: "Bancos", href: "/bancos" },
+      { icon: ArrowUpRight, label: "Ingresos", href: "/ingresos" },
+      { icon: BookOpen, label: "Contabilidad", href: "/contabilidad/asientos" },
+      { icon: DollarSign, label: "Pagos", href: "/pagos" },
     ]
   },
   {
     title: "Sistema",
     items: [
-      { icon: Settings, label: "Configuración", href: "/configuracion", permission: PERMISSIONS.CONFIG_VIEW },
+      { icon: HelpCircle, label: "Ayuda", href: "/ayuda" },
+      { icon: Settings, label: "Configuración", href: "/configuracion" },
+      { icon: FileText, label: "Reportes", href: "/reportes/estados-cuenta" },
     ]
   }
 ];
@@ -66,16 +75,6 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
-
-  const user = session?.user;
-
-  // Filtrar grupos de menú basado en permisos del usuario
-  const authorizedMenuGroups = menuGroups
-    .map(group => ({
-      ...group,
-      items: group.items.filter(item => !item.permission || hasPermission(user as any, item.permission as any))
-    }))
-    .filter(group => group.items.length > 0);
 
   return (
     <aside
@@ -100,7 +99,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-6 scrollbar-thin scrollbar-thumb-slate-200">
-        {authorizedMenuGroups.map((group, idx) => (
+        {menuGroups.map((group, idx) => (
           <div key={idx} className="space-y-1.5 flex flex-col items-center sm:items-stretch">
             <p className={cn(
               "px-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest transition-all duration-300",

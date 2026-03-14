@@ -1,28 +1,94 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useCreateIncome, useClients, useCategories, useBankAccounts } from "@/hooks/useDatabase";
 import {
     Save,
     X,
     ArrowUpRight,
     Users,
     Wallet,
-    Calendar as CalendarIcon,
+    Calendar,
     ChevronDown,
     FileText,
-    DollarSign
+    DollarSign,
+    CheckCircle2,
+    Clock,
+    Loader2
 } from "lucide-react";
 import Link from "next/link";
 
 export default function NuevoIngreso() {
+    const router = useRouter();
+    const createIncome = useCreateIncome();
+    const { data: clients = [] } = useClients();
+    const { data: categories = [] } = useCategories();
+    const { data: bankAccounts = [] } = useBankAccounts();
+
+    const [isLoading, setIsLoading] = useState(false);
+    const [formData, setFormData] = useState({
+        number: `ING-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
+        date: new Date().toISOString().split('T')[0],
+        description: "",
+        clientId: "",
+        categoryId: "",
+        amount: "",
+        paymentMethod: "CASH",
+        reference: "",
+        status: "RECEIVED",
+        bankAccountId: "",
+    });
+
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const validate = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formData.description) newErrors.description = "La descripción es requerida";
+        if (!formData.amount || parseFloat(formData.amount) <= 0) newErrors.amount = "Ingrese un monto válido";
+        if (formData.paymentMethod === "BANK_TRANSFER" && !formData.bankAccountId) {
+            newErrors.bankAccountId = "Seleccione una cuenta bancaria";
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!validate()) return;
+
+        setIsLoading(true);
+        try {
+            await createIncome.mutateAsync({
+                number: formData.number,
+                date: formData.date,
+                description: formData.description,
+                clientId: formData.clientId || null,
+                categoryId: formData.categoryId || null,
+                amount: parseFloat(formData.amount),
+                paymentMethod: formData.paymentMethod,
+                reference: formData.reference || null,
+                status: formData.status,
+                bankAccountId: formData.bankAccountId || null,
+            });
+            router.push("/ingresos");
+        } catch (error: any) {
+            alert("Error al crear ingreso: " + (error.message || "Error desconocido"));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const filteredCategories = categories.filter((cat: any) => cat.type === "SERVICE" || !cat.type);
+
     return (
         <AppLayout>
-            <div className="space-y-6">
-                {/* Header */}
+            <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <Link
-                            href="/"
+                            href="/ingresos"
                             className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-slate-600 border border-transparent hover:border-slate-200"
                         >
                             <X size={20} />
@@ -33,39 +99,87 @@ export default function NuevoIngreso() {
                         </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                        <button className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold hover:opacity-90 transition-opacity flex items-center shadow-lg shadow-primary/20">
-                            <Save size={18} className="mr-2" />
+                        <Link
+                            href="/ingresos"
+                            className="px-6 py-2.5 border border-border text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors"
+                        >
+                            Cancelar
+                        </Link>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-colors flex items-center shadow-lg shadow-emerald-600/20 disabled:opacity-50"
+                        >
+                            {isLoading ? (
+                                <Loader2 size={18} className="mr-2 animate-spin" />
+                            ) : (
+                                <Save size={18} className="mr-2" />
+                            )}
                             Guardar Ingreso
                         </button>
                     </div>
                 </div>
 
-                {/* Content */}
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-8">
                     <div className="max-w-3xl mx-auto space-y-10 py-4">
-                        {/* Main Fields */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-700">Número de Referencia</label>
+                                <div className="relative">
+                                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <input
+                                        type="text"
+                                        value={formData.number}
+                                        onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-700">Fecha del Ingreso</label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <input
+                                        type="date"
+                                        value={formData.date}
+                                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-700">Cliente (Recibido de)</label>
                                 <div className="relative">
                                     <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <select className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
+                                    <select
+                                        value={formData.clientId}
+                                        onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                                    >
                                         <option value="">Selecciona un cliente...</option>
-                                        <option>Tech Solutions S.A.S</option>
-                                        <option>Almacenes Éxito</option>
-                                        <option>Ventas Mostrador</option>
+                                        {clients.map((client: any) => (
+                                            <option key={client.id} value={client.id}>{client.name}</option>
+                                        ))}
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Cuenta de Destino</label>
+                                <label className="text-sm font-bold text-slate-700">Categoría</label>
                                 <div className="relative">
                                     <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <select className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
-                                        <option>Caja General</option>
-                                        <option>Bancolombia - Principal</option>
-                                        <option>Davivienda - Ahorros</option>
+                                    <select
+                                        value={formData.categoryId}
+                                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                                    >
+                                        <option value="">Selecciona una categoría...</option>
+                                        {filteredCategories.map((cat: any) => (
+                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                        ))}
                                     </select>
                                     <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                                 </div>
@@ -79,23 +193,84 @@ export default function NuevoIngreso() {
                                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
                                         type="number"
+                                        step="0.01"
+                                        min="0"
                                         placeholder="0.00"
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-4 pl-11 pr-4 text-xl outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all font-black text-slate-800"
+                                        value={formData.amount}
+                                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                        className={cn(
+                                            "w-full bg-slate-50 border border-slate-100 rounded-xl py-4 pl-11 pr-4 text-xl outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-black text-slate-800",
+                                            errors.amount && "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500"
+                                        )}
                                     />
+                                    {errors.amount && <p className="text-xs text-rose-500 mt-1">{errors.amount}</p>}
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-bold text-slate-700">Fecha del Ingreso</label>
+                                <label className="text-sm font-bold text-slate-700">Referencia (Opcional)</label>
                                 <div className="relative">
-                                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
-                                        type="date"
-                                        defaultValue={new Date().toISOString().split('T')[0]}
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-4 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all"
+                                        type="text"
+                                        placeholder="Número de referencia externo"
+                                        value={formData.reference}
+                                        onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
                                     />
                                 </div>
                             </div>
                         </div>
+
+                        <div className="space-y-2 border-t border-slate-50 pt-10">
+                            <label className="text-sm font-bold text-slate-700">Método de Pago</label>
+                            <div className="flex space-x-4">
+                                {[
+                                    { value: "CASH", label: "Efectivo", icon: DollarSign },
+                                    { value: "BANK_TRANSFER", label: "Transferencia", icon: Wallet },
+                                    { value: "OTHER", label: "Otro", icon: FileText },
+                                ].map((method) => (
+                                    <button
+                                        key={method.value}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, paymentMethod: method.value })}
+                                        className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold transition-all flex items-center justify-center ${
+                                            formData.paymentMethod === method.value
+                                                ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                                                : "bg-slate-50 border-border text-slate-500 hover:bg-slate-100"
+                                        }`}
+                                    >
+                                        <method.icon size={16} className="mr-2" />
+                                        {method.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {formData.paymentMethod === "BANK_TRANSFER" && (
+                            <div className="space-y-2">
+                                <label className="text-sm font-bold text-slate-700">Cuenta Bancaria</label>
+                                <div className="relative">
+                                    <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                    <select
+                                        value={formData.bankAccountId}
+                                        onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
+                                        className={cn(
+                                            "w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all",
+                                            errors.bankAccountId && "border-rose-500"
+                                        )}
+                                    >
+                                        <option value="">Selecciona una cuenta...</option>
+                                        {bankAccounts.map((account: any) => (
+                                            <option key={account.id} value={account.id}>
+                                                {account.name} - {account.accountNumber}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                                </div>
+                                {errors.bankAccountId && <p className="text-xs text-rose-500 mt-1">{errors.bankAccountId}</p>}
+                            </div>
+                        )}
 
                         <div className="space-y-2 border-t border-slate-50 pt-10">
                             <label className="text-sm font-bold text-slate-700">Concepto / Descripción</label>
@@ -104,8 +279,44 @@ export default function NuevoIngreso() {
                                 <textarea
                                     rows={4}
                                     placeholder="Escribe el concepto del ingreso..."
-                                    className="w-full bg-slate-50 border border-slate-100 rounded-xl py-4 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all resize-none"
-                                ></textarea>
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    className={cn(
+                                        "w-full bg-slate-50 border border-slate-100 rounded-xl py-4 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all resize-none",
+                                        errors.description && "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500"
+                                    )}
+                                />
+                                {errors.description && <p className="text-xs text-rose-500 mt-1">{errors.description}</p>}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2 border-t border-slate-50 pt-10">
+                            <label className="text-sm font-bold text-slate-700">Estado del Ingreso</label>
+                            <div className="flex space-x-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, status: "RECEIVED" })}
+                                    className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold transition-all flex items-center justify-center ${
+                                        formData.status === "RECEIVED"
+                                            ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                                            : "bg-slate-50 border-border text-slate-500 hover:bg-slate-100"
+                                    }`}
+                                >
+                                    <CheckCircle2 size={16} className="mr-2" />
+                                    Recibido
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, status: "PENDING" })}
+                                    className={`flex-1 py-3 px-4 rounded-xl border text-sm font-bold transition-all flex items-center justify-center ${
+                                        formData.status === "PENDING"
+                                            ? "bg-amber-600 border-amber-600 text-white shadow-md shadow-amber-600/20"
+                                            : "bg-slate-50 border-border text-slate-500 hover:bg-slate-100"
+                                    }`}
+                                >
+                                    <Clock size={16} className="mr-2" />
+                                    Pendiente
+                                </button>
                             </div>
                         </div>
 
@@ -122,7 +333,11 @@ export default function NuevoIngreso() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </form>
         </AppLayout>
     );
+}
+
+function cn(...classes: (string | undefined | null | false)[]) {
+    return classes.filter(Boolean).join(" ");
 }

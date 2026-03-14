@@ -9,8 +9,8 @@ const adapter = new PrismaPg(pool);
 
 const globalForPrisma = global as unknown as { prismaClient: PrismaClient };
 
-export const prisma =
-  (process.env.NODE_ENV === "development" ? null : globalForPrisma.prismaClient) ??
+export const prisma = 
+  globalForPrisma.prismaClient ??
   new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
@@ -29,10 +29,6 @@ const GLOBAL_MODELS = [
   "VerificationToken",
   "Organization",
   "Membership",
-  "InvoiceItem", // Model holds reference through parent
-  "EstimateItem", // Model holds reference through parent
-  "ExpenseItem", // Model holds reference through parent
-  "Payment",     // Model holds reference through parent
 ];
 
 const MODELS_WITH_ORG = [
@@ -40,8 +36,16 @@ const MODELS_WITH_ORG = [
   "Product",
   "Category",
   "Invoice",
+  "InvoiceItem",
   "Estimate",
+  "EstimateItem",
   "Expense",
+  "ExpenseItem",
+  "Payment",
+  "AccountingAccount",
+  "JournalEntry",
+  "JournalLine",
+  "Role",
 ];
 
 export function getScopedPrisma(organizationId: string) {

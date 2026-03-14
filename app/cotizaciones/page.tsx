@@ -3,11 +3,12 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
-import { Plus, Search, Filter, Download, X, Edit, Trash, CheckCircle2, Clock, Ban, AlertCircle, Loader2, FileCheck } from "lucide-react";
+import { Plus, Search, Filter, Download, X, Edit, Trash, CheckCircle2, Clock, Ban, AlertCircle, Loader2, FileCheck, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEstimates, useDeleteEstimate, useConvertToInvoice } from "@/hooks/useDatabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ReprintModal } from "@/components/modals/ReprintModal";
 
 export default function CotizacionesPage() {
     const router = useRouter();
@@ -16,6 +17,7 @@ export default function CotizacionesPage() {
     const convertToInvoice = useConvertToInvoice();
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("Todas");
+    const [reprintQuote, setReprintQuote] = useState<any>(null);
 
     const filteredQuotes = useMemo(() => {
         return quotes.filter((quote: any) => {
@@ -146,6 +148,13 @@ export default function CotizacionesPage() {
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end space-x-2">
                                         <button
+                                            onClick={() => setReprintQuote(quote)}
+                                            className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-slate-400 transition-colors"
+                                            title="Reimprimir"
+                                        >
+                                            <Printer size={16} />
+                                        </button>
+                                        <button
                                             onClick={async () => {
                                                 if (confirm("¿Deseas convertir esta cotización en una factura?")) {
                                                     try {
@@ -197,6 +206,13 @@ export default function CotizacionesPage() {
                     </div>
                 )}
             </div>
+
+            <ReprintModal
+                isOpen={!!reprintQuote}
+                onClose={() => setReprintQuote(null)}
+                invoice={reprintQuote}
+                type="estimate"
+            />
         </AppLayout>
     );
 }

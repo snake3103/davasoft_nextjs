@@ -101,7 +101,7 @@ function ProductSearch({ value, onSelect, onChange, products }: ProductSearchPro
                   {p.sku && <p className="text-[10px] text-slate-400">SKU: {p.sku}</p>}
                 </div>
                 <span className="text-sm font-bold text-primary shrink-0">
-                  ${Number(p.price).toLocaleString("es-CO")}
+                  ${Number(p.price).toLocaleString("es-DO")}
                 </span>
               </button>
             ))
@@ -385,7 +385,7 @@ export function InvoiceModal({ isOpen, onClose, onSave, initialData }: InvoiceMo
                     {/* Line Total */}
                     <div className="col-span-2 text-right">
                       <span className="text-sm font-bold text-slate-700">
-                        ${(item.quantity * item.price).toLocaleString("es-CO", {
+                        ${(item.quantity * item.price).toLocaleString("es-DO", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
                         })}
@@ -424,16 +424,16 @@ export function InvoiceModal({ isOpen, onClose, onSave, initialData }: InvoiceMo
             <div className="w-full md:w-64 space-y-3">
               <div className="flex justify-between items-center text-sm font-medium text-slate-500">
                 <span>Subtotal</span>
-                <span>${subtotal.toLocaleString("es-CO", { minimumFractionDigits: 2 })}</span>
+                <span>${subtotal.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between items-center text-sm font-medium text-slate-500">
                 <span>IVA (19%)</span>
-                <span>${tax.toLocaleString("es-CO", { minimumFractionDigits: 2 })}</span>
+                <span>${tax.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</span>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-border">
                 <span className="text-lg font-bold text-slate-800">Total</span>
                 <span className="text-2xl font-black text-primary">
-                  ${total.toLocaleString("es-CO", { minimumFractionDigits: 2 })}
+                  ${total.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>

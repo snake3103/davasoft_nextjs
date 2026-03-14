@@ -1,0 +1,46 @@
+name: Database Backup
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # Daily at 2 AM
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pg
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Create backup directory
+        run: mkdir -p backups
+
+      - name: Create backup
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          pg_dump "$DATABASE_URL" > "backups/davasoft_$TIMESTAMP.sql"
+
+      - name: Upload to Cloudflare R2 (optional)
+        if: env.R2_ACCESS_KEY_ID
+        uses: dev-drprasad/upload-to-r2@v1.0
+        with:
+          source: "backups/*.sql"
+          destination: backups/
+          endpoint: ${{ env.R2_ENDPOINT }}
+          accessKeyId: ${{ secrets.R2_ACCESS_KEY_ID }}
+          secretAccessKey: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          bucket: ${{ secrets.R2_BUCKET }}
+
+      - name: Cleanup old backups
+        run: |
+          find backups -name "davasoft_*.sql" -type f -mtime +7 -delete

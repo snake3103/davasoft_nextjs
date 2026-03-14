@@ -97,7 +97,7 @@ function ProductSearch({ value, onSelect, onChange, products }: ProductSearchPro
                                     {p.sku && <p className="text-[10px] text-slate-400">SKU: {p.sku}</p>}
                                 </div>
                                 <span className="text-sm font-bold text-primary shrink-0">
-                                    ${Number(p.price).toLocaleString("es-CO")}
+                                    ${Number(p.price).toLocaleString("es-DO")}
                                 </span>
                             </button>
                         ))
@@ -123,7 +123,7 @@ export default function InvoiceForm({ initialData, action }: InvoiceFormProps) {
 
     const [formData, setFormData] = useState({
         clientId: initialData?.clientId ?? "",
-        number: initialData?.number ?? `FE-${Math.floor(1000 + Math.random() * 9000)}`,
+        number: initialData?.number ?? "",
         date: initialData?.date
             ? new Date(initialData.date).toISOString().split("T")[0]
             : new Date().toISOString().split("T")[0],
@@ -143,6 +143,16 @@ export default function InvoiceForm({ initialData, action }: InvoiceFormProps) {
         notes: initialData?.notes ?? "",
         status: initialData?.status ?? "DRAFT",
     });
+
+    // Generar número de factura solo en el cliente (evita hydration mismatch)
+    useEffect(() => {
+        if (!initialData?.number && !formData.number) {
+            setFormData(prev => ({
+                ...prev,
+                number: `FE-${Math.floor(1000 + Math.random() * 9000)}`
+            }));
+        }
+    }, []);
 
     useEffect(() => {
         if (state?.success) {
@@ -166,6 +176,7 @@ export default function InvoiceForm({ initialData, action }: InvoiceFormProps) {
         <div className="max-w-5xl mx-auto space-y-6 pb-20">
             <form action={formAction}>
                 <input type="hidden" name="clientId" value={formData.clientId} />
+                <input type="hidden" name="number" value={formData.number} />
                 <input type="hidden" name="items" value={JSON.stringify(formData.items)} />
                 <input type="hidden" name="status" value={formData.status} />
 
@@ -179,7 +190,9 @@ export default function InvoiceForm({ initialData, action }: InvoiceFormProps) {
                             <h1 className="text-2xl font-bold text-slate-800">
                                 {initialData ? "Editar Factura" : "Nueva Factura"}
                             </h1>
-                            <p className="text-slate-500 text-sm">#{formData.number}</p>
+                            <p className="text-slate-500 text-sm">
+                                {formData.number ? `#${formData.number}` : "#FE-XXXX"}
+                            </p>
                         </div>
                     </div>
                     <div className="flex gap-3">
@@ -311,7 +324,7 @@ export default function InvoiceForm({ initialData, action }: InvoiceFormProps) {
                                             </div>
                                             <div className="col-span-2 text-right">
                                                 <span className="text-sm font-bold text-slate-700">
-                                                    ${(item.quantity * item.price * 1.19).toLocaleString("es-CO", { minimumFractionDigits: 2 })}
+                                                    ${(item.quantity * item.price * 1.19).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
                                                 </span>
                                             </div>
                                             <div className="col-span-1 flex justify-center">
@@ -343,18 +356,40 @@ export default function InvoiceForm({ initialData, action }: InvoiceFormProps) {
                                 />
                             </div>
                             <div className="w-64 space-y-3">
+                                {/* Selector de Tipo de Venta */}
+                                <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">
+                                        Tipo de Venta
+                                    </label>
+                                    <select
+                                        value={formData.status}
+                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                        className="w-full bg-slate-50 border border-border rounded-xl px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                                    >
+                                        <option value="PAID">✅ Contado (Pagada)</option>
+                                        <option value="SENT">💳 Crédito (Por Cobrar)</option>
+                                        <option value="DRAFT">📝 Borrador</option>
+                                    </select>
+                                    <p className="text-[10px] text-slate-400 mt-1">
+                                        {formData.status === "SENT" 
+                                            ? "Se creará cuenta por cobrar" 
+                                            : formData.status === "PAID"
+                                            ? "Pago inmediato - Sin cuenta por cobrar"
+                                            : "Se puede editar después"}
+                                    </p>
+                                </div>
                                 <div className="flex justify-between text-sm text-slate-500">
                                     <span>Subtotal</span>
-                                    <span>${subtotal.toLocaleString("es-CO", { minimumFractionDigits: 2 })}</span>
+                                    <span>${subtotal.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-slate-500">
                                     <span>IVA (19%)</span>
-                                    <span>${tax.toLocaleString("es-CO", { minimumFractionDigits: 2 })}</span>
+                                    <span>${tax.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</span>
                                 </div>
                                 <div className="flex justify-between pt-3 border-t border-border">
                                     <span className="text-lg font-bold text-slate-800">Total</span>
                                     <span className="text-2xl font-black text-primary">
-                                        ${total.toLocaleString("es-CO", { minimumFractionDigits: 2 })}
+                                        ${total.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
                                     </span>
                                 </div>
                             </div>

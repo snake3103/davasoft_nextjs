@@ -3,26 +3,32 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
-import { Plus, Search, Filter, Download, X, Edit, Trash, ShoppingBag, Loader2, AlertCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { useExpenses } from "@/hooks/useDatabase"; // We'll use expenses for Compras
+import { Plus, Search, Download, Edit, Trash, ShoppingBag, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { cn, formatCurrency } from "@/lib/utils";
+import { usePurchases, useDeletePurchase } from "@/hooks/useDatabase";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 export default function ComprasPage() {
-    const { data: expenses = [], isLoading } = useExpenses();
+    const { data: purchases = [], isLoading } = usePurchases();
+    const deletePurchase = useDeletePurchase();
     const [searchQuery, setSearchQuery] = useState("");
 
-    // Consider dynamic filtering for "Compras" vs "Gastos Generales" if needed
-    // For now, list all to show the entries
+    const handleDelete = async (id: string) => {
+        if (confirm("¿Estás seguro de que deseas eliminar esta factura de compra?")) {
+            try {
+                await deletePurchase.mutateAsync(id);
+            } catch (error: any) {
+                alert("Error al eliminar: " + error.message);
+            }
+        }
+    };
+
     const filteredCompras = useMemo(() => {
-        return expenses.filter((expense: any) => {
-            const matchesSearch =
-                expense.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                expense.provider.toLowerCase().includes(searchQuery.toLowerCase());
-            return matchesSearch;
-        });
-    }, [expenses, searchQuery]);
+        return purchases.filter((purchase: any) =>
+            purchase.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            purchase.provider.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [purchases, searchQuery]);
 
     const getStatusLabel = (status: string) => {
         const labels: Record<string, string> = {
@@ -42,6 +48,10 @@ export default function ComprasPage() {
                         <p className="text-slate-500 mt-1">Registra las adquisiciones de productos de tus proveedores.</p>
                     </div>
                     <div className="flex items-center space-x-3">
+                        <button className="px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors flex items-center">
+                            <Download size={18} className="mr-2" />
+                            Exportar
+                        </button>
                         <Link
                             href="/compras/nueva"
                             className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center shadow-lg shadow-primary/20"
@@ -70,26 +80,39 @@ export default function ComprasPage() {
                         <Loader2 className="w-10 h-10 text-primary animate-spin" />
                     </div>
                 ) : filteredCompras.length > 0 ? (
-                    <Table headers={["Número", "Proveedor", "Fecha", "Total", "Estado", "Acciones"]}>
-                        {filteredCompras.map((expense: any) => (
-                            <TableRow key={expense.id}>
-                                <TableCell className="font-bold text-primary">{expense.number}</TableCell>
-                                <TableCell className="font-medium text-slate-700">{expense.provider}</TableCell>
-                                <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                                <TableCell className="font-bold">${Number(expense.total).toLocaleString()}</TableCell>
+                    <Table headers={["Número", "Proveedor", "Fecha", "Categoría", "Total", "Estado", "Acciones"]}>
+                        {filteredCompras.map((purchase: any) => (
+                            <TableRow key={purchase.id}>
+                                <TableCell className="font-bold text-primary">{purchase.number}</TableCell>
+                                <TableCell className="font-medium text-slate-700">{purchase.provider}</TableCell>
+                                <TableCell>{new Date(purchase.date).toLocaleDateString()}</TableCell>
+                                <TableCell>
+                                    <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                                        {purchase.category?.name || "Compra"}
+                                    </span>
+                                </TableCell>
+                                <TableCell className="font-bold">{formatCurrency(purchase.total)}</TableCell>
                                 <TableCell>
                                     <div className={cn(
                                         "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
-                                        expense.status === "PAID" ? "bg-emerald-50 text-emerald-600" :
-                                            expense.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
+                                        purchase.status === "PAID" ? "bg-emerald-50 text-emerald-600" :
+                                            purchase.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
                                     )}>
-                                        {getStatusLabel(expense.status)}
+                                        {purchase.status === "PAID" && <CheckCircle2 size={12} className="mr-1" />}
+                                        {purchase.status === "PENDING" && <Clock size={12} className="mr-1" />}
+                                        {getStatusLabel(purchase.status)}
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end space-x-2">
                                         <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
                                             <Edit size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDelete(purchase.id)}
+                                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
+                                        >
+                                            <Trash size={16} />
                                         </button>
                                     </div>
                                 </TableCell>

@@ -4,13 +4,14 @@ import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, Download, MoreHorizontal, Receipt, CheckCircle2, Clock, Edit, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { ExpenseModal } from "@/components/modals/ExpenseModal";
 
-import { useExpenses } from "@/hooks/useDatabase";
+import { useExpenses, useDeleteExpense } from "@/hooks/useDatabase";
 
 export default function GastosPage() {
   const { data: expenses, isLoading } = useExpenses();
+  const deleteExpense = useDeleteExpense();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,6 +19,16 @@ export default function GastosPage() {
   const handleSaveExpense = async (formData: any) => {
     console.log("Saving expense:", formData);
     setIsModalOpen(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("¿Estás seguro de que deseas eliminar este gasto?")) {
+      try {
+        await deleteExpense.mutateAsync(id);
+      } catch (error: any) {
+        alert("Error al eliminar: " + error.message);
+      }
+    }
   };
 
   const filteredExpenses = useMemo(() => {
@@ -76,7 +87,7 @@ export default function GastosPage() {
                 <TableCell>
                   <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded">{expense.category?.name || "Gasto"}</span>
                 </TableCell>
-                <TableCell className="font-bold text-rose-600">${Number(expense.total).toLocaleString()}</TableCell>
+                <TableCell className="font-bold text-rose-600">{formatCurrency(expense.total)}</TableCell>
                 <TableCell>
                   <div className={cn(
                     "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
@@ -96,7 +107,7 @@ export default function GastosPage() {
                       <Edit size={16} />
                     </button>
                     <button
-                      onClick={() => { /* Delete logic */ }}
+                      onClick={() => handleDelete(expense.id)}
                       className="p-1 hover:bg-slate-100 rounded-md text-slate-400 hover:text-rose-600 transition-colors"
                     >
                       <Trash2 size={16} />

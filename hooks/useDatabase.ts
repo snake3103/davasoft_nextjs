@@ -306,6 +306,88 @@ export function useCategories() {
   });
 }
 
+// --- HOOKS PARA INGRESOS ---
+export function useIncomes() {
+  return useQuery({
+    queryKey: ["incomes"],
+    queryFn: async () => {
+      const res = await fetch("/api/incomes");
+      if (!res.ok) throw new Error("Error fetching incomes");
+      return res.json();
+    },
+  });
+}
+
+export function useIncome(id: string) {
+  return useQuery({
+    queryKey: ["incomes", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/incomes/${id}`);
+      if (!res.ok) throw new Error("Error fetching income");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateIncome() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/incomes", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error creating income");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incomes"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["bankAccounts"] });
+    },
+  });
+}
+
+export function useUpdateIncome() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/incomes/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Error updating income");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incomes"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
+export function useDeleteIncome() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/incomes/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Error deleting income");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["incomes"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
 // ... existing code ...
 export function useCreateExpense() {
   const queryClient = useQueryClient();
@@ -324,6 +406,212 @@ export function useCreateExpense() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["products"] }); // Inventory might change
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
+// --- HOOKS PARA CUENTAS BANCARIAS ---
+export function useBankAccounts() {
+  return useQuery({
+    queryKey: ["bankAccounts"],
+    queryFn: async () => {
+      const res = await fetch("/api/bank-accounts");
+      if (!res.ok) throw new Error("Error fetching bank accounts");
+      return res.json();
+    },
+  });
+}
+
+export function useBankAccount(id: string) {
+  return useQuery({
+    queryKey: ["bankAccounts", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/bank-accounts/${id}`);
+      if (!res.ok) throw new Error("Error fetching bank account");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateBankAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/bank-accounts", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error creating bank account");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bankAccounts"] });
+    },
+  });
+}
+
+export function useUpdateBankAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/bank-accounts/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error updating bank account");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bankAccounts"] });
+    },
+  });
+}
+
+export function useDeleteBankAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/bank-accounts/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error deleting bank account");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bankAccounts"] });
+    },
+  });
+}
+
+export function useUpdateExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/expenses/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error updating expense");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
+export function useDeleteExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/expenses/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Error deleting expense");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
+// --- HOOKS PARA COMPRAS ---
+export function usePurchases() {
+  return useQuery({
+    queryKey: ["purchases"],
+    queryFn: async () => {
+      const res = await fetch("/api/purchases");
+      if (!res.ok) throw new Error("Error fetching purchases");
+      return res.json();
+    },
+  });
+}
+
+export function usePurchase(id: string) {
+  return useQuery({
+    queryKey: ["purchases", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/purchases/${id}`);
+      if (!res.ok) throw new Error("Error fetching purchase");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreatePurchase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/purchases", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error creating purchase");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
+export function useUpdatePurchase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/purchases/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Error updating purchase");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    },
+  });
+}
+
+export function useDeletePurchase() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/purchases/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Error deleting purchase");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchases"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     },
   });

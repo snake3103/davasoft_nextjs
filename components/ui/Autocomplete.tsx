@@ -319,7 +319,7 @@ export function ProductSearch({ value, onSelect, onChange, products, placeholder
                                     {p.sku && <p className="text-[10px] text-slate-400">SKU: {p.sku}</p>}
                                 </div>
                                 <span className="text-sm font-bold text-primary shrink-0">
-                                    ${Number(p.price).toLocaleString("es-CO")}
+                                    ${Number(p.price).toLocaleString("es-DO")}
                                 </span>
                             </button>
                         ))

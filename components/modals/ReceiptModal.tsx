@@ -1,7 +1,9 @@
 "use client";
 
-import { X, Printer, Download, Share2, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Printer, Download, CheckCircle2, Settings, Loader2, Monitor, AlertTriangle, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePrinter } from "@/hooks/usePrinter";
 
 interface ReceiptModalProps {
    isOpen: boolean;
@@ -10,105 +12,356 @@ interface ReceiptModalProps {
    total: number;
    orderId: string;
    paymentMethods?: any[];
+   companyName?: string;
+   companyNit?: string;
+   companyAddress?: string;
+   autoPrint?: boolean;
+   printFormat?: "TICKET" | "HALF_LETTER" | "LETTER";
+   taxRate?: number;
+   showLogo?: boolean;
 }
 
-export function ReceiptModal({ isOpen, onClose, cart, total, orderId, paymentMethods = [] }: ReceiptModalProps) {
+export function ReceiptModal({ 
+   isOpen, 
+   onClose, 
+   cart, 
+   total, 
+   orderId, 
+   paymentMethods = [],
+   companyName = "DAVASOFT S.A.S",
+   companyNit = "901.234.567-8",
+   companyAddress = "Av. Principal #123, Santo Domingo",
+   autoPrint = false,
+   printFormat = "TICKET",
+   taxRate = 18,
+   showLogo = true
+}: ReceiptModalProps) {
+   const { 
+     selectedPrinter, 
+     selectPrinter, 
+     printers, 
+     printDirect, 
+     printWithDialog,
+     savePdf,
+     isPrinting, 
+     printError,
+     hasPrintedSuccessfully,
+     clearError,
+     detectPrinters 
+   } = usePrinter();
+   
+   const [showSettings, setShowSettings] = useState(false);
+   const [showError, setShowError] = useState(false);
+   const [showSuccess, setShowSuccess] = useState(false);
+   const printRef = useRef<HTMLDivElement>(null);
+
+    const totalPaid = paymentMethods.reduce((acc, p) => acc + p.amount, 0);
+    const change = Math.max(0, totalPaid - total);
+    const taxRateDecimal = taxRate / 100;
+    const subtotal = total / (1 + taxRateDecimal);
+    const itbis = total - subtotal;
+
+    const getPrintWidth = () => {
+       switch (printFormat) {
+          case "TICKET": return "80mm";
+          case "HALF_LETTER": return "148mm";
+          case "LETTER": return "216mm";
+          default: return "80mm";
+       }
+    };
+
+   useEffect(() => {
+     if (isOpen) {
+       detectPrinters();
+       setShowError(false);
+       setShowSuccess(false);
+       clearError();
+       
+       if (autoPrint) {
+         setTimeout(() => {
+           handleQuickPrint();
+         }, 800);
+       }
+     }
+   }, [isOpen, autoPrint, detectPrinters, clearError]);
+
+   useEffect(() => {
+     if (printError) {
+       setShowError(true);
+       const timer = setTimeout(() => {
+         setShowError(false);
+         clearError();
+       }, 5000);
+       return () => clearTimeout(timer);
+     }
+   }, [printError, clearError]);
+
+   useEffect(() => {
+     if (hasPrintedSuccessfully) {
+       setShowSuccess(true);
+       if (autoPrint) {
+         setTimeout(() => {
+           onClose();
+         }, 2000);
+       }
+     }
+   }, [hasPrintedSuccessfully, autoPrint, onClose]);
+
+   const generateReceiptContent = () => {
+      if (!printRef.current) return "";
+      return printRef.current.innerHTML;
+   };
+
+   const handleQuickPrint = async () => {
+      const content = generateReceiptContent();
+      const success = await printDirect(content);
+      if (!success) {
+        setShowError(true);
+      }
+   };
+
+   const handlePrintWithDialog = async () => {
+      const content = generateReceiptContent();
+      await printWithDialog(content);
+   };
+
+   const handleSavePdf = async () => {
+      const content = generateReceiptContent();
+      await savePdf(content);
+   };
+
    if (!isOpen) return null;
 
-   const totalPaid = paymentMethods.reduce((acc, p) => acc + p.amount, 0);
-   const change = Math.max(0, totalPaid - total);
-
    return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-300 print:bg-white print:p-0">
-         <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 print:shadow-none print:max-w-none print:rounded-none">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-300">
+         <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
 
-            {/* Success Header - Hidden during print */}
-            <div className="p-8 text-center bg-emerald-50 relative overflow-hidden print:hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-100 rounded-full -mr-16 -mt-16"></div>
-               <div className="h-20 w-20 bg-emerald-500 rounded-3xl flex items-center justify-center text-white mx-auto shadow-lg shadow-emerald-200 relative z-10 animate-in bounce-in duration-500">
-                  <CheckCircle2 size={40} />
+            <div className="p-6 border-b border-border flex justify-between items-center">
+               <div>
+                  <h2 className="text-xl font-black text-slate-800">Venta Completada</h2>
+                  <p className="text-sm text-slate-500">Orden #{orderId}</p>
                </div>
-               <h2 className="text-2xl font-black text-slate-800 mt-6 relative z-10">¡Venta Exitosa!</h2>
-               <p className="text-slate-500 text-sm mt-1 relative z-10">Orden #{orderId}</p>
+               <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400">
+                  <X size={20} />
+               </button>
             </div>
 
-            <div className="p-8 space-y-6 print:p-0">
-               {/* Ticket Design */}
-               <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 font-mono text-xs text-slate-600 print:bg-white print:border-none print:p-4">
-                  <div className="text-center border-b border-slate-200 pb-4 mb-4">
-                     <p className="font-bold text-slate-800 text-sm uppercase">Mi Empresa S.A.S</p>
-                     <p>NIT: 900.123.456-7</p>
-                     <p>Calle 123 #45-67, Bogotá</p>
-                     <p className="mt-2 text-[10px] text-slate-400">Orden: #{orderId}</p>
+            <div className="p-6 bg-emerald-50 flex items-center justify-center py-8 relative">
+               {showSuccess ? (
+                  <div className="h-16 w-16 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-200 animate-in zoom-in">
+                     <Check size={32} />
                   </div>
+               ) : (
+                  <div className="h-16 w-16 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-emerald-200">
+                     <CheckCircle2 size={32} />
+                  </div>
+               )}
+            </div>
 
-                  <div className="space-y-2 mb-4">
-                     {cart.map((item, idx) => (
-                        <div key={idx} className="flex justify-between">
-                           <span>{item.quantity}x {item.name.substring(0, 20)}...</span>
-                           <span>${(item.price * item.quantity).toFixed(2)}</span>
+            {showError && printError && (
+               <div className="mx-6 -mt-2 mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                  <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                     <p className="font-bold text-red-700 text-sm">Error de impresión</p>
+                     <p className="text-xs text-red-600">{printError}</p>
+                  </div>
+               </div>
+            )}
+
+            {showSuccess && (
+               <div className="mx-6 -mt-2 mb-4 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+                  <Check size={20} className="text-green-500 flex-shrink-0" />
+                  <p className="font-bold text-green-700 text-sm">¡Impresión enviada exitosamente!</p>
+               </div>
+            )}
+
+            <div className="p-6 space-y-4 flex-1 overflow-y-auto">
+               <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                     <Printer size={20} className="text-slate-400" />
+                     <div>
+                        <p className="font-bold text-slate-700">{selectedPrinter?.name || "Sin impresora"}</p>
+                        <p className="text-xs text-slate-400">
+                           {selectedPrinter?.type === "pdf" ? "Guardar como PDF" : "Impresión directa"}
+                        </p>
+                     </div>
+                  </div>
+                  <button 
+                     onClick={() => setShowSettings(!showSettings)}
+                     className="p-2 hover:bg-slate-200 rounded-lg text-slate-400"
+                  >
+                     <Settings size={18} />
+                  </button>
+               </div>
+
+               {showSettings && (
+                  <div className="p-4 bg-slate-50 rounded-xl space-y-3">
+                     <p className="text-xs font-bold text-slate-400 uppercase">Método de impresión</p>
+                     
+                     <button
+                        onClick={() => {
+                           const printer = printers.find(p => p.id === "system-default") || printers[0];
+                           selectPrinter(printer);
+                           setShowSettings(false);
+                        }}
+                        className={cn(
+                           "w-full text-left px-4 py-3 rounded-lg font-medium transition-all flex items-center gap-3",
+                           selectedPrinter?.id === "system-default" 
+                              ? "bg-primary text-white" 
+                              : "bg-white text-slate-600 hover:bg-slate-100"
+                        )}
+                     >
+                        <Monitor size={20} />
+                        <div>
+                           <p>🖨️ Impresión directa</p>
+                           <p className="text-xs opacity-70">Intenta imprimir sin diálogo</p>
+                        </div>
+                     </button>
+
+                     <button
+                        onClick={() => {
+                           const printer = printers.find(p => p.id === "pdf") || printers[1];
+                           selectPrinter(printer);
+                           setShowSettings(false);
+                        }}
+                        className={cn(
+                           "w-full text-left px-4 py-3 rounded-lg font-medium transition-all flex items-center gap-3",
+                           selectedPrinter?.id === "pdf" 
+                              ? "bg-primary text-white" 
+                              : "bg-white text-slate-600 hover:bg-slate-100"
+                        )}
+                     >
+                        <Download size={20} />
+                        <div>
+                           <p>📄 Guardar como PDF</p>
+                        </div>
+                     </button>
+                  </div>
+               )}
+            </div>
+
+            {/* Receipt Template - Hidden */}
+            <div ref={printRef} className="hidden" style={{ fontFamily: 'Courier New, monospace', fontSize: printFormat === 'TICKET' ? '11px' : '12px', width: getPrintWidth(), padding: '5mm' }}>
+               {showLogo && (
+                  <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+                     <div style={{ fontSize: printFormat === 'LETTER' ? '24px' : '16px', fontWeight: 'bold' }}>{companyName}</div>
+                     <div style={{ fontSize: '10px' }}>NIT: {companyNit}</div>
+                     <div style={{ fontSize: '10px' }}>{companyAddress}</div>
+                  </div>
+               )}
+               
+               <div style={{ borderTop: '1px dashed #333', borderBottom: '1px dashed #333', padding: '8px 0', margin: '10px 0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span>FECHA:</span>
+                     <span>{new Date().toLocaleDateString('es-DO')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                     <span>HORA:</span>
+                     <span>{new Date().toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                     <span>ORDEN:</span>
+                     <span>{orderId}</span>
+                  </div>
+               </div>
+
+               <div style={{ marginBottom: '10px' }}>
+                  {cart.map((item, idx) => (
+                     <div key={idx} style={{ marginBottom: '4px' }}>
+                        <div style={{ fontWeight: 'bold' }}>{item.name.substring(0, 25)}</div>
+                        <div style={{ fontSize: '9px', color: '#666' }}>
+                           {item.quantity} x ${Number(item.price).toFixed(2)} = ${(item.price * item.quantity).toFixed(2)}
+                        </div>
+                     </div>
+                  ))}
+               </div>
+
+               <div style={{ borderTop: '1px dashed #333', paddingTop: '10px' }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                      <span>SUBTOTAL:</span>
+                      <span>${subtotal.toFixed(2)}</span>
+                   </div>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                      <span>ITBIS ({taxRate}%):</span>
+                      <span>${itbis.toFixed(2)}</span>
+                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', fontWeight: 'bold', marginTop: '5px', borderTop: '1px solid #333', paddingTop: '5px' }}>
+                     <span>TOTAL:</span>
+                     <span>${Number(total).toFixed(2)}</span>
+                  </div>
+               </div>
+
+               {paymentMethods.length > 0 && (
+                  <div style={{ borderTop: '1px dashed #333', paddingTop: '10px', marginTop: '10px' }}>
+                     <div style={{ fontSize: '9px', fontWeight: 'bold', marginBottom: '5px' }}>FORMA DE PAGO:</div>
+                     {paymentMethods.map((p, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px' }}>
+                           <span>{p.type}:</span>
+                           <span>${Number(p.amount).toFixed(2)}</span>
                         </div>
                      ))}
-                  </div>
-
-                  <div className="border-t border-slate-200 pt-4 space-y-1">
-                     <div className="flex justify-between text-slate-400">
-                        <span>Subtotal:</span>
-                        <span>${(total * 0.81).toFixed(2)}</span>
-                     </div>
-                     <div className="flex justify-between text-slate-400">
-                        <span>IVA (19%):</span>
-                        <span>${(total * 0.19).toFixed(2)}</span>
-                     </div>
-                     <div className="flex justify-between text-slate-800 font-bold text-sm mt-2 border-b border-slate-200 pb-2">
-                        <span>TOTAL:</span>
-                        <span>${Number(total).toFixed(2)}</span>
-                     </div>
-
-                     {paymentMethods.length > 0 && (
-                        <div className="pt-2 space-y-1">
-                           <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter mb-1">Pagado con:</p>
-                           {paymentMethods.map((p, idx) => (
-                              <div key={idx} className="flex justify-between items-center italic">
-                                 <span>{p.type}:</span>
-                                 <span>${Number(p.amount).toFixed(2)}</span>
-                              </div>
-                           ))}
-                           {change > 0 && (
-                              <div className="flex justify-between items-center font-bold text-slate-900 border-t border-slate-200 mt-2 pt-1">
-                                 <span>CAMBIO:</span>
-                                 <span>${Number(change).toFixed(2)}</span>
-                              </div>
-                           )}
+                     {change > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 'bold', color: '#0066cc', marginTop: '5px' }}>
+                           <span>CAMBIO:</span>
+                           <span>${Number(change).toFixed(2)}</span>
                         </div>
                      )}
                   </div>
+               )}
 
-                  <div className="mt-8 text-center text-[10px] text-slate-400">
-                     <p>Gracias por su compra</p>
-                     <p>www.miempresa.com</p>
-                     <p className="mt-1">{new Date().toLocaleString()}</p>
+               <div style={{ textAlign: 'center', marginTop: '20px', paddingTop: '10px', borderTop: '1px dashed #333' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 'bold' }}>¡GRACIAS POR SU PREFERENCIA!</div>
+                  <div style={{ fontSize: '9px', color: '#666', marginTop: '5px' }}>
+                     Este documento no constituye<br/>comprobante fiscal válido
+                  </div>
+                  <div style={{ fontSize: '8px', color: '#999', marginTop: '10px' }}>
+                     Powered by Davasoft ERP
                   </div>
                </div>
+            </div>
 
-               {/* Buttons - Hidden during print */}
-               <div className="grid grid-cols-2 gap-4 print:hidden">
+            <div className="p-6 border-t border-border space-y-3">
+               <button
+                  onClick={handleQuickPrint}
+                  disabled={isPrinting}
+                  className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/25 transition-all hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2"
+               >
+                  {isPrinting ? (
+                     <>
+                        <Loader2 size={20} className="animate-spin" />
+                        Imprimiendo...
+                     </>
+                  ) : (
+                     <>
+                        <Printer size={20} />
+                        Impresión directa
+                     </>
+                  )}
+               </button>
+               
+               <div className="grid grid-cols-2 gap-3">
                   <button
-                     onClick={() => window.print()}
-                     className="py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 transition-all flex items-center justify-center"
+                     onClick={handlePrintWithDialog}
+                     disabled={isPrinting}
+                     className="py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                     <Printer size={18} className="mr-2" /> Imprimir
+                     <Monitor size={18} />
+                     Elegir impresora
                   </button>
+
                   <button
-                     className="py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 transition-all flex items-center justify-center"
+                     onClick={handleSavePdf}
+                     disabled={isPrinting}
+                     className="py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-slate-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                     <Download size={18} className="mr-2" /> PDF
+                     <Download size={18} />
+                     Guardar PDF
                   </button>
                </div>
 
                <button
                   onClick={onClose}
-                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl transition-all hover:opacity-90 active:scale-[0.98] print:hidden"
+                  className="w-full py-3 text-slate-500 hover:text-slate-700 font-medium transition-colors"
                >
                   Nueva Venta
                </button>

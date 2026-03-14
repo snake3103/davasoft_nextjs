@@ -12,7 +12,8 @@ import {
   FileText,
   ChevronRight,
   Globe,
-  Mail
+  Mail,
+  Zap
 } from "lucide-react";
 
 const sections = [
@@ -23,6 +24,13 @@ const sections = [
       { id: "profile", name: "Perfil de la empresa", desc: "Información legal, dirección y contacto", icon: Building, href: "/configuracion/perfil" },
       { id: "taxes", name: "Impuestos", desc: "Configura el IVA, Retenciones y otros", icon: ShieldCheck, href: "/configuracion/impuestos" },
       { id: "currency", name: "Moneda", desc: "Cambia la moneda base y multimoneda", icon: Globe, href: "/configuracion/moneda" },
+    ]
+  },
+  {
+    title: "Punto de Venta",
+    icon: Zap,
+    items: [
+      { id: "pos", name: "Configuración del POS", desc: "Cajas, impresión y comportamientos del POS", icon: Zap, href: "/configuracion/pos" },
     ]
   },
   {

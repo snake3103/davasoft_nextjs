@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useActionState } from "react";
-import { X, Package, Tag, DollarSign, Database, FileText, Loader2 } from "lucide-react";
+import { X, Package, Tag, DollarSign, Database, FileText, Loader2, TrendingDown, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CategorySearch } from "@/components/ui/Autocomplete";
 import { useCategories } from "@/hooks/useDatabase";
@@ -31,6 +31,9 @@ export function ProductModal({ isOpen, onClose, initialData }: ProductModalProps
         stock: "",
         sku: "",
         description: "",
+        cost: "0",
+        minStock: "0",
+        costMethod: "AVERAGE",
     });
 
     useEffect(() => {
@@ -42,6 +45,9 @@ export function ProductModal({ isOpen, onClose, initialData }: ProductModalProps
                 stock: initialData?.stock?.toString() || "",
                 sku: initialData?.sku || initialData?.reference || "",
                 description: initialData?.description || "",
+                cost: initialData?.cost?.toString() || "0",
+                minStock: initialData?.minStock?.toString() || "0",
+                costMethod: initialData?.costMethod || "AVERAGE",
             });
         }
     }, [isOpen, initialData]);
@@ -163,6 +169,58 @@ export function ProductModal({ isOpen, onClose, initialData }: ProductModalProps
                                 rows={3}
                                 className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                             />
+                        </div>
+
+                        <div className="md:col-span-2 border-t border-border pt-6 mt-2">
+                            <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center">
+                                <TrendingDown size={16} className="mr-2 text-primary" />
+                                Control de Inventario y Costos
+                            </h3>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700 flex items-center">
+                                <DollarSign size={14} className="mr-2 text-primary" /> Costo Unitario
+                            </label>
+                            <input
+                                type="number"
+                                name="cost"
+                                step="any"
+                                value={formData.cost}
+                                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                                placeholder="0.00"
+                                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700 flex items-center">
+                                <AlertTriangle size={14} className="mr-2 text-primary" /> Stock Mínimo
+                            </label>
+                            <input
+                                type="number"
+                                name="minStock"
+                                value={formData.minStock}
+                                onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+                                placeholder="0"
+                                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-bold text-slate-700 flex items-center">
+                                <Database size={14} className="mr-2 text-primary" /> Método de Costo
+                            </label>
+                            <select
+                                name="costMethod"
+                                value={formData.costMethod}
+                                onChange={(e) => setFormData({ ...formData, costMethod: e.target.value })}
+                                className="w-full bg-slate-50 border border-border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            >
+                                <option value="AVERAGE">Promedio Ponderado</option>
+                                <option value="FIFO">FIFO (Primero en entrar, primero en salir)</option>
+                                <option value="LIFO">LIFO (Último en entrar, primero en salir)</option>
+                            </select>
                         </div>
                     </div>
                 </div>

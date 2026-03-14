@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthContext, unauthorizedResponse, errorResponse } from "@/lib/api-helpers";
 import { invoiceSchema } from "@/lib/schemas/invoice";
+import { generateInvoiceJournalEntry } from "@/app/actions/accounting";
+import { Decimal } from "decimal.js";
 
 export async function GET() {
   const { db } = await getAuthContext();
@@ -8,10 +10,27 @@ export async function GET() {
 
   try {
     const invoices = await db.invoice.findMany({
-      include: { client: true, items: { include: { product: true } } },
+      include: { 
+        client: true, 
+        items: { include: { product: true } },
+        payments: true
+      },
       orderBy: { date: "desc" },
     });
-    return NextResponse.json(invoices);
+
+    const invoicesWithBalance = invoices.map(invoice => {
+      const totalPaid = invoice.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+      const balance = Number(invoice.total) - totalPaid;
+      
+      return {
+        ...invoice,
+        payments: undefined,
+        totalPaid,
+        balance: balance < 0.01 ? 0 : balance
+      };
+    });
+
+    return NextResponse.json(invoicesWithBalance);
   } catch (error) {
     console.error("Fetch invoices error:", error);
     return errorResponse("Error fetching invoices");
@@ -30,7 +49,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
     }
 
-    const { number, date, dueDate, clientId, subtotal = 0, tax = 0, total = 0, status, items } = result.data;
+    const { number, date, dueDate, clientId, subtotal = 0, tax = 0, total = 0, status, items, isPOS = false } = result.data;
 
     const client = await db.client.findFirst({ where: { id: clientId, organizationId } });
     if (!client) {
@@ -63,22 +82,55 @@ export async function POST(request: Request) {
         include: { items: true },
       });
 
-      // 2. Adjust stock for each item that has a productId
+      // 2. Adjust stock for each item that has a productId and create inventory movement
       for (const item of items) {
         if (item.productId) {
-          await tx.product.update({
-            where: { id: item.productId, organizationId },
-            data: {
-              stock: {
-                decrement: item.quantity,
-              },
-            },
+          const product = await tx.product.findUnique({
+            where: { id: item.productId },
           });
+          
+          if (product) {
+            const unitCost = Number(product.cost) || 0;
+            const totalCost = new Decimal(item.quantity).mul(unitCost);
+            
+            await tx.inventoryMovement.create({
+              data: {
+                organizationId,
+                productId: item.productId,
+                type: "SALE",
+                quantity: item.quantity,
+                unitCost,
+                totalCost,
+                reference: number,
+                sourceType: "INVOICE",
+                sourceId: newInvoice.id,
+              },
+            });
+
+            await tx.product.update({
+              where: { id: item.productId, organizationId },
+              data: {
+                stock: {
+                  decrement: item.quantity,
+                },
+              },
+            });
+          }
         }
       }
 
       return newInvoice;
     });
+
+    // 3. Generate journal entry automatically if invoice is paid or sent
+    if (invoice.status === "PAID" || invoice.status === "SENT") {
+      try {
+        await generateInvoiceJournalEntry(invoice.id, isPOS);
+      } catch (journalError) {
+        console.error("Error generating journal entry for invoice:", journalError);
+        // No fallar la creación de la factura, solo loguear el error contable
+      }
+    }
 
     return NextResponse.json(invoice);
   } catch (error) {

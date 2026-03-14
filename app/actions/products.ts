@@ -19,6 +19,9 @@ export async function createProduct(prevState: any, formData: FormData) {
       stock: formData.get("stock") as string,
       sku: formData.get("sku") as string,
       categoryId: formData.get("categoryId") as string || null,
+      cost: formData.get("cost") as string || "0",
+      minStock: formData.get("minStock") as string || "0",
+      costMethod: formData.get("costMethod") as string || "AVERAGE",
     };
 
     const result = productSchema.safeParse(rawData);
@@ -55,6 +58,9 @@ export async function updateProduct(id: string, prevState: any, formData: FormDa
       stock: formData.get("stock") as string,
       sku: formData.get("sku") as string,
       categoryId: formData.get("categoryId") as string || null,
+      cost: formData.get("cost") as string || "0",
+      minStock: formData.get("minStock") as string || "0",
+      costMethod: formData.get("costMethod") as string || "AVERAGE",
     };
 
     const result = productSchema.safeParse(rawData);

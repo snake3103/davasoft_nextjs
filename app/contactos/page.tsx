@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, UserCircle, Mail, Phone, MoreHorizontal, UserCheck, X, Edit, Trash } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { useClients, useDeleteClient } from "@/hooks/useDatabase";
 
 export default function ContactosPage() {
@@ -140,7 +141,9 @@ export default function ContactosPage() {
                     <span className="text-slate-600 text-sm">Activo</span>
                   </div>
                 </TableCell>
-                <TableCell className="font-bold text-slate-600 text-sm">$0.00</TableCell>
+                <TableCell className={cn("font-bold text-sm", contact.balance > 0 ? "text-rose-600" : contact.balance < 0 ? "text-emerald-600" : "text-slate-600")}>
+                  {formatCurrency(contact.balance)}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end space-x-2">
                     <Link

@@ -42,13 +42,16 @@ export default function NuevaCompraPage() {
         if (!validate()) return;
         try {
             const total = formData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-            await createExpense.mutateAsync({
+            console.log("Creating expense with data:", { ...formData, total });
+            const result = await createExpense.mutateAsync({
                 ...formData,
                 total,
                 items: formData.items
             });
+            console.log("Expense created:", result);
             router.push("/compras");
         } catch (err: any) {
+            console.error("Error creating expense:", err);
             alert(err.message);
         }
     };

@@ -61,6 +61,149 @@ async function main() {
     create: { name: "Arriendo", type: "EXPENSE", organizationId: org.id },
   });
 
+  // 3b. Create Default Chart of Accounts (Plan de Cuentas - República Dominicana)
+  // Basado en el Plan de Cuentas NIIF para PYMES de RD
+  
+  // Función helper para crear cuentas con upsert
+  const createAccount = async (code: string, name: string, type: any, parentId: string | null) => {
+    return await prisma.accountingAccount.upsert({
+      where: {
+        organizationId_code: {
+          organizationId: org.id,
+          code: code,
+        },
+      },
+      update: {
+        name: name,
+        type: type,
+        parentId: parentId,
+      },
+      create: {
+        code: code,
+        name: name,
+        type: type,
+        organizationId: org.id,
+        parentId: parentId,
+      },
+    });
+  };
+
+  // ACTIVOS (1-xxxx-xxx)
+  const activo = await createAccount("1", "ACTIVOS", "ASSET", null);
+
+  // Activo Corriente (1-1)
+  const activoCorriente = await createAccount("1-1", "ACTIVO CORRIENTE", "ASSET", activo.id);
+
+  // Efectivo y Equivalentes (1-1-01)
+  const efectivo = await createAccount("1-1-01", "EFECTIVO Y EQUIVALENTES", "ASSET", activoCorriente.id);
+
+  await createAccount("1-1-01-001", "Caja General", "ASSET", efectivo.id);
+  await createAccount("1-1-01-002", "Caja Chica", "ASSET", efectivo.id);
+
+  // Bancos (1-1-02)
+  const bancos = await createAccount("1-1-02", "BANCOS", "ASSET", activoCorriente.id);
+
+  await createAccount("1-1-02-001", "Banco Popular (Cta. Cte.)", "ASSET", bancos.id);
+  await createAccount("1-1-02-002", "Banco Reservas (Cta. Cte.)", "ASSET", bancos.id);
+  await createAccount("1-1-02-003", "Banco BHD (Cta. Cte.)", "ASSET", bancos.id);
+
+  // Cuentas por Cobrar (1-1-03)
+  const porCobrar = await createAccount("1-1-03", "CUENTAS POR COBRAR", "ASSET", activoCorriente.id);
+
+  await createAccount("1-1-03-001", "Clientes Nacionales", "ASSET", porCobrar.id);
+  await createAccount("1-1-03-002", "Clientes del Exterior", "ASSET", porCobrar.id);
+  await createAccount("1-1-03-003", "Cobros a Directivos y Empleados", "ASSET", porCobrar.id);
+
+  // Inventarios (1-1-04)
+  const inventarios = await createAccount("1-1-04", "INVENTARIOS", "ASSET", activoCorriente.id);
+
+  await createAccount("1-1-04-001", "Mercancías Disponibles", "ASSET", inventarios.id);
+  await createAccount("1-1-04-002", "Mercancías en Tránsito", "ASSET", inventarios.id);
+
+  // ITBIS Compras (1-1-05) - Impuesto Dominicano
+  const itbisCompras = await createAccount("1-1-05", "ITBIS COMPRAS (Crédito Fiscal)", "ASSET", activoCorriente.id);
+
+  await createAccount("1-1-05-001", "ITBIS Compras Locales (18%)", "ASSET", itbisCompras.id);
+  await createAccount("1-1-05-002", "ITBIS Importaciones", "ASSET", itbisCompras.id);
+
+  // Activos No Corrientes (1-2)
+  const activoNoCorriente = await createAccount("1-2", "ACTIVOS NO CORRIENTES", "ASSET", activo.id);
+
+  // Propiedad, Planta y Equipo (1-2-01)
+  const ppe = await createAccount("1-2-01", "PROPIEDAD, PLANTA Y EQUIPO", "ASSET", activoNoCorriente.id);
+
+  await createAccount("1-2-01-001", "Equipos de Oficina", "ASSET", ppe.id);
+  await createAccount("1-2-01-002", "Equipos de Computación", "ASSET", ppe.id);
+  await createAccount("1-2-01-003", "Mobiliario y Equipo", "ASSET", ppe.id);
+  await createAccount("1-2-01-004", "Vehículos", "ASSET", ppe.id);
+
+  // Depreciación Acumulada (1-2-02)
+  await createAccount("1-2-02", "DEPRECIACIÓN ACUMULADA", "ASSET", activoNoCorriente.id);
+
+  // PASIVOS (2-xxxx-xxx)
+  const pasivo = await createAccount("2", "PASIVOS", "LIABILITY", null);
+
+  // Pasivo Corriente (2-1)
+  const pasivoCorriente = await createAccount("2-1", "PASIVO CORRIENTE", "LIABILITY", pasivo.id);
+
+  // Cuentas por Pagar (2-1-01)
+  const porPagar = await createAccount("2-1-01", "CUENTAS POR PAGAR", "LIABILITY", pasivoCorriente.id);
+
+  await createAccount("2-1-01-001", "Proveedores Nacionales", "LIABILITY", porPagar.id);
+  await createAccount("2-1-01-002", "Proveedores del Exterior", "LIABILITY", porPagar.id);
+
+  // ITBIS Ventas (2-1-02) - Impuesto Dominicano
+  const itbisVentas = await createAccount("2-1-02", "ITBIS VENTAS (Débito Fiscal)", "LIABILITY", pasivoCorriente.id);
+
+  await createAccount("2-1-02-001", "ITBIS Ventas Locales (18%)", "LIABILITY", itbisVentas.id);
+
+  // Impuestos por Pagar (2-1-03)
+  const impuestosPagar = await createAccount("2-1-03", "IMPUESTOS Y APORTES POR PAGAR", "LIABILITY", pasivoCorriente.id);
+
+  await createAccount("2-1-03-001", "Retención ISR por Pagar", "LIABILITY", impuestosPagar.id);
+  await createAccount("2-1-03-002", "Retención ITBIS por Pagar", "LIABILITY", impuestosPagar.id);
+  await createAccount("2-1-03-003", "TSS por Pagar (Seguridad Social)", "LIABILITY", impuestosPagar.id);
+  await createAccount("2-1-03-004", "INFOTEP por Pagar", "LIABILITY", impuestosPagar.id);
+
+  // PATRIMONIO (3-xxxx-xxx)
+  const patrimonio = await createAccount("3", "PATRIMONIO", "EQUITY", null);
+
+  await createAccount("3-1-01-001", "Capital Social Suscrito", "EQUITY", patrimonio.id);
+  await createAccount("3-1-02-001", "Utilidad (Pérdida) del Ejercicio", "EQUITY", patrimonio.id);
+  await createAccount("3-1-02-002", "Utilidades Acumuladas", "EQUITY", patrimonio.id);
+
+  // INGRESOS (4-xxxx-xxx)
+  const ingresos = await createAccount("4", "INGRESOS", "REVENUE", null);
+
+  await createAccount("4-1-01-001", "Ventas de Mercancías Locales", "REVENUE", ingresos.id);
+  await createAccount("4-1-01-002", "Ventas de Mercancías al Exterior", "REVENUE", ingresos.id);
+  await createAccount("4-1-02-001", "Prestación de Servicios", "REVENUE", ingresos.id);
+  await createAccount("4-1-03-001", "Ingresos Diversos", "REVENUE", ingresos.id);
+
+  // Descuentos (4-2)
+  await createAccount("4-2-01-001", "Descuentos sobre Ventas", "REVENUE", ingresos.id);
+
+  // GASTOS (5-xxxx-xxx)
+  const gastos = await createAccount("5", "GASTOS", "EXPENSE", null);
+
+  // Gastos de Operación (5-1)
+  const gastosOperacion = await createAccount("5-1", "GASTOS DE OPERACIÓN", "EXPENSE", gastos.id);
+
+  await createAccount("5-1-01-001", "Sueldos y Salarios", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-01-002", "Seguridad Social (TSS)", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-01-003", "INFOTEP", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-02-001", "Arrendamientos", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-03-001", "Servicios Públicos (Luz, Agua, Teléfono)", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-04-001", "Internet y Telecomunicaciones", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-05-001", "Útiles y Materiales de Oficina", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-06-001", "Mantenimiento y Reparaciones", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-07-001", "Combustibles y Lubricantes", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-08-001", "Seguros", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-09-001", "Gastos de Ventas", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-10-001", "Gastos Bancarios", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-11-001", "Depreciación y Amortización", "EXPENSE", gastosOperacion.id);
+  await createAccount("5-1-99-001", "Otros Gastos de Operación", "EXPENSE", gastosOperacion.id);
+
   // 4. Create Clients
   const client1 = await prisma.client.upsert({
     where: { organizationId_idNumber: { organizationId: org.id, idNumber: "901.123.456-1" } },

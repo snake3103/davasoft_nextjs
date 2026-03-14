@@ -11,6 +11,7 @@ export const expenseItemSchema = z.object({
 export const expenseSchema = z.object({
   number: z.string().min(1, "El número de gasto es requerido"),
   date: z.string().or(z.date()),
+  type: z.enum(["EXPENSE", "PURCHASE"]).default("EXPENSE"),
   provider: z.string().min(1, "El proveedor es requerido"),
   categoryId: z.string().min(1, "La categoría es requerida"),
   total: z.coerce.number(),

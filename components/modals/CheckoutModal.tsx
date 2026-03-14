@@ -9,7 +9,7 @@ import {
     Trash2,
     Plus,
     CheckCircle2,
-    Calculator
+    Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +25,14 @@ interface CheckoutModalProps {
     total: number;
 }
 
+const quickAmounts = [100, 200, 500, 1000, 2000, 5000];
+
 export function CheckoutModal({ isOpen, onClose, onComplete, total }: CheckoutModalProps) {
     const [payments, setPayments] = useState<PaymentMethod[]>([]);
-    const [activeTab, setActiveTab] = useState<PaymentMethod["type"]>("Efectivo");
+    const [activeType, setActiveType] = useState<"Efectivo" | "Tarjeta" | "Transferencia">("Efectivo");
     const [inputValue, setInputValue] = useState("");
     const [error, setError] = useState<string | null>(null);
+    const [isMixtoMode, setIsMixtoMode] = useState(false);
 
     const paidAmount = useMemo(() => {
         return payments.reduce((acc, p) => acc + p.amount, 0);
@@ -41,27 +44,54 @@ export function CheckoutModal({ isOpen, onClose, onComplete, total }: CheckoutMo
     useEffect(() => {
         if (isOpen) {
             setPayments([]);
-            setInputValue(remaining.toString());
+            setInputValue("");
             setError(null);
+            setIsMixtoMode(false);
+            setActiveType("Efectivo");
         }
     }, [isOpen]);
 
     const addPayment = () => {
         const amount = parseFloat(inputValue);
-        if (isNaN(amount) || amount <= 0) return;
-        setError(null);
-
-        // Validation 1: Card / Transfer must NOT exceed remaining (always exact or partial)
-        if ((activeTab === "Tarjeta" || activeTab === "Transferencia") && amount > remaining) {
-            setError(`El pago con ${activeTab.toLowerCase()} debe ser exacto (máx. $${Number(remaining).toFixed(2)})`);
+        if (isNaN(amount) || amount <= 0) {
+            setError("Ingresa un monto válido");
             return;
         }
+        
+        if ((activeType === "Tarjeta" || activeType === "Transferencia") && amount > remaining) {
+            setError(`El monto con ${activeType} no puede exceder el restante ($${remaining.toFixed(2)})`);
+            return;
+        }
+        
+        setError(null);
+        setPayments([...payments, { type: activeType, amount }]);
+        setInputValue("");
+    };
 
-        // Case: Cash can exceed remaining (generates change)
-        setPayments([...payments, { type: activeTab, amount }]);
+    const togglePaymentMethod = (type: "Efectivo" | "Tarjeta" | "Transferencia") => {
+        setActiveType(type);
+        setInputValue("");
+        setError(null);
+        
+        if (type === "Efectivo") {
+            setInputValue(remaining.toFixed(2));
+        } else {
+            setInputValue(remaining.toFixed(2));
+        }
+    };
 
-        const newRemaining = Math.max(0, total - (paidAmount + amount));
-        setInputValue(newRemaining.toString() === "0" ? "" : newRemaining.toString());
+    const addQuickAmount = (amount: number) => {
+        if ((activeType === "Tarjeta" || activeType === "Transferencia") && amount > remaining) {
+            setError(`El monto con ${activeType} no puede exceder el restante ($${remaining.toFixed(2)})`);
+            return;
+        }
+        setError(null);
+        setPayments([...payments, { type: activeType, amount }]);
+    };
+
+    const addPaymentMethod = (type: "Efectivo" | "Tarjeta" | "Transferencia") => {
+        if (remaining <= 0) return;
+        setPayments([...payments, { type, amount: remaining }]);
     };
 
     const removePayment = (index: number) => {
@@ -70,135 +100,247 @@ export function CheckoutModal({ isOpen, onClose, onComplete, total }: CheckoutMo
         setPayments(newPayments);
     };
 
+    const handleComplete = () => {
+        if (paidAmount >= total) {
+            onComplete(payments);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row h-[600px]">
+            <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
 
-                {/* Left Section: Input */}
-                <div className="flex-1 p-8 flex flex-col border-b md:border-b-0 md:border-r border-border">
-                    <div className="flex justify-between items-center mb-8">
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Caja</h2>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-slate-100 rounded-full text-slate-400"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="space-y-6 flex-1">
-                        <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 mb-8 text-center">
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total a cobrar</p>
-                            <p className="text-4xl font-black text-slate-900">${Number(total).toFixed(2)}</p>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-2xl mb-6 font-bold">
-                            {(["Efectivo", "Tarjeta", "Transferencia"] as const).map((type) => (
-                                <button
-                                    key={type}
-                                    onClick={() => setActiveTab(type)}
-                                    className={cn(
-                                        "py-3 text-xs rounded-xl flex flex-col items-center justify-center space-y-1 transition-all",
-                                        activeTab === type
-                                            ? "bg-white text-primary shadow-sm"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    )}
-                                >
-                                    {type === "Efectivo" && <Banknote size={20} />}
-                                    {type === "Tarjeta" && <CreditCard size={20} />}
-                                    {type === "Transferencia" && <ArrowRightLeft size={20} />}
-                                    <span>{type}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest pl-2">Monto {activeTab}</label>
-                            <div className="relative group">
-                                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-slate-300 group-focus-within:text-primary transition-colors">$</span>
-                                <input
-                                    type="number"
-                                    value={inputValue}
-                                    onChange={(e) => setInputValue(e.target.value)}
-                                    onKeyPress={(e) => e.key === "Enter" && addPayment()}
-                                    className="w-full bg-slate-50 border-2 border-transparent focus:border-primary/20 rounded-[1.5rem] pl-12 pr-6 py-5 text-3xl font-black outline-none transition-all placeholder:text-slate-200"
-                                    placeholder="0.00"
-                                />
-                            </div>
-                            {error && (
-                                <p className="text-rose-500 text-xs font-bold pl-2 animate-in slide-in-from-top-1 duration-200">
-                                    {error}
-                                </p>
-                            )}
-                        </div>
-
-                        <button
-                            onClick={addPayment}
-                            className="w-full py-5 bg-slate-900 text-white rounded-2xl font-bold text-lg shadow-xl hover:bg-slate-800 transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
-                        >
-                            <Plus size={24} />
-                            <span>Agregar Pago</span>
-                        </button>
-                    </div>
+                <div className="p-6 border-b border-border flex justify-between items-center">
+                    <h2 className="text-2xl font-black text-slate-800">Cobrar</h2>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400">
+                        <X size={20} />
+                    </button>
                 </div>
 
-                {/* Right Section: Summary */}
-                <div className="w-full md:w-[300px] bg-slate-50 p-8 flex flex-col font-medium">
-                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-6 border-b border-slate-200 pb-2">Resumen de Pagos</h3>
+                <div className="p-6 bg-gradient-to-br from-slate-800 to-slate-900 text-center">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Total a cobrar</p>
+                    <p className="text-5xl font-black text-white tracking-tight">${Number(total).toFixed(2)}</p>
+                    {paidAmount > 0 && (
+                        <div className="mt-3 flex justify-center gap-4 text-sm">
+                            <span className="text-emerald-400">Pagado: ${paidAmount.toFixed(2)}</span>
+                            {remaining > 0 && <span className="text-rose-400">Restante: ${remaining.toFixed(2)}</span>}
+                        </div>
+                    )}
+                </div>
 
-                    <div className="flex-1 space-y-3 overflow-y-auto">
-                        {payments.map((p, idx) => (
-                            <div key={idx} className="bg-white p-4 rounded-2xl border border-border shadow-sm flex items-center justify-between group">
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase">{p.type}</p>
-                                    <p className="font-bold text-slate-800">${Number(p.amount).toFixed(2)}</p>
-                                </div>
-                                <button
-                                    onClick={() => removePayment(idx)}
-                                    className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                <div className="p-6 flex-1 overflow-y-auto">
+                    {isMixtoMode ? (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-bold text-slate-600 uppercase tracking-wider">Pago mixto</p>
+                                <button 
+                                    onClick={() => { setIsMixtoMode(false); setPayments([]); }}
+                                    className="text-xs text-primary hover:underline font-medium"
                                 >
-                                    <Trash2 size={16} />
+                                    Cancelar
                                 </button>
                             </div>
-                        ))}
-                        {payments.length === 0 && (
-                            <div className="h-40 flex flex-col items-center justify-center text-slate-300">
-                                <Calculator size={40} className="mb-2 opacity-50" />
-                                <p className="text-xs font-bold uppercase tracking-tighter">Sin pagos</p>
-                            </div>
-                        )}
-                    </div>
 
-                    <div className="mt-8 space-y-4 pt-6 border-t border-slate-200">
-                        <div className="flex justify-between items-center text-sm font-bold">
-                            <span className="text-slate-400">Restante</span>
-                            <span className={cn(remaining > 0 ? "text-rose-500" : "text-emerald-500")}>
-                                ${Number(remaining).toFixed(2)}
-                            </span>
+                            <div className="grid grid-cols-3 gap-2 mb-4">
+                                {(["Efectivo", "Tarjeta", "Transferencia"] as const).map((type) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setActiveType(type)}
+                                        className={cn(
+                                            "py-3 rounded-xl font-bold text-sm transition-all flex flex-col items-center gap-1",
+                                            activeType === type
+                                                ? "bg-slate-800 text-white"
+                                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                        )}
+                                    >
+                                        {type === "Efectivo" && <Banknote size={20} />}
+                                        {type === "Tarjeta" && <CreditCard size={20} />}
+                                        {type === "Transferencia" && <ArrowRightLeft size={20} />}
+                                        {type}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="bg-slate-50 p-4 rounded-2xl">
+                                <p className="text-xs font-bold text-slate-400 uppercase mb-3">Montos rápidos</p>
+                                <div className="grid grid-cols-3 gap-2 mb-3">
+                                    {quickAmounts.map((amount) => (
+                                        <button
+                                            key={amount}
+                                            onClick={() => addQuickAmount(amount)}
+                                            className="py-2 bg-white border border-slate-200 hover:border-primary hover:text-primary rounded-xl font-bold text-sm transition-all"
+                                        >
+                                            ${amount}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-black text-slate-300">$</span>
+                                        <input
+                                            type="number"
+                                            value={inputValue}
+                                            onChange={(e) => setInputValue(e.target.value)}
+                                            onKeyPress={(e) => e.key === "Enter" && addPayment()}
+                                            className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-lg font-bold outline-none focus:border-primary"
+                                            placeholder="Otro monto"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={addPayment}
+                                        disabled={!inputValue || parseFloat(inputValue) <= 0}
+                                        className={cn(
+                                            "px-4 py-2 bg-slate-800 text-white rounded-xl font-bold transition-all",
+                                            !inputValue && "opacity-50 cursor-not-allowed"
+                                        )}
+                                    >
+                                        <Plus size={20} />
+                                    </button>
+                                </div>
+                                {error && <p className="text-rose-500 text-xs font-bold mt-2">{error}</p>}
+                            </div>
                         </div>
-                        {change > 0 && (
-                            <div className="flex justify-between items-center text-sm font-bold bg-amber-50 p-3 rounded-xl border border-amber-100">
-                                <span className="text-amber-700">Cambio</span>
-                                <span className="text-amber-700 text-lg">${Number(change).toFixed(2)}</span>
-                            </div>
-                        )}
+                    ) : (
+                        <div className="space-y-3">
+                            <p className="text-sm font-bold text-slate-500 text-center mb-2">Selecciona un método de pago</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => addPaymentMethod("Efectivo")}
+                                    disabled={remaining <= 0}
+                                    className={cn(
+                                        "py-5 rounded-2xl font-bold text-lg transition-all flex flex-col items-center gap-2",
+                                        remaining > 0 
+                                            ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/25" 
+                                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                    )}
+                                >
+                                    <Banknote size={32} />
+                                    <span>Efectivo</span>
+                                    <span className="text-xs font-normal opacity-80">Sin límites</span>
+                                </button>
 
-                        <button
-                            disabled={paidAmount < total}
-                            onClick={() => onComplete(payments)}
-                            className={cn(
-                                "w-full py-5 rounded-2xl font-bold text-lg transition-all flex items-center justify-center space-x-2 shadow-xl",
-                                paidAmount >= total
-                                    ? "bg-primary text-white shadow-primary/25 hover:opacity-90 active:scale-95"
-                                    : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                                <button
+                                    onClick={() => addPaymentMethod("Tarjeta")}
+                                    disabled={remaining <= 0}
+                                    className={cn(
+                                        "py-5 rounded-2xl font-bold text-lg transition-all flex flex-col items-center gap-2",
+                                        remaining > 0 
+                                            ? "bg-blue-500 text-white hover:bg-blue-600 shadow-lg shadow-blue-500/25" 
+                                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                    )}
+                                >
+                                    <CreditCard size={32} />
+                                    <span>Tarjeta</span>
+                                </button>
+
+                                <button
+                                    onClick={() => addPaymentMethod("Transferencia")}
+                                    disabled={remaining <= 0}
+                                    className={cn(
+                                        "py-5 rounded-2xl font-bold text-lg transition-all flex flex-col items-center gap-2",
+                                        remaining > 0 
+                                            ? "bg-purple-500 text-white hover:bg-purple-600 shadow-lg shadow-purple-500/25" 
+                                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                    )}
+                                >
+                                    <ArrowRightLeft size={32} />
+                                    <span>Transferencia</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setIsMixtoMode(true)}
+                                    disabled={remaining <= 0}
+                                    className={cn(
+                                        "py-5 rounded-2xl font-bold text-lg transition-all flex flex-col items-center gap-2",
+                                        remaining > 0 
+                                            ? "bg-amber-500 text-white hover:bg-amber-600 shadow-lg shadow-amber-500/25" 
+                                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                                    )}
+                                >
+                                    <Wallet size={32} />
+                                    <span>Pago Mixto</span>
+                                    <span className="text-xs font-normal opacity-80">Varios métodos</span>
+                                </button>
+                            </div>
+
+                            {remaining > 0 && (
+                                <div className="mt-4 pt-4 border-t border-slate-100">
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">O agrega un monto personalizado</p>
+                                    <div className="grid grid-cols-3 gap-2 mb-3">
+                                        {quickAmounts.map((amount) => (
+                                            <button
+                                                key={amount}
+                                                onClick={() => {
+                                                    setPayments([{ type: "Efectivo", amount }]);
+                                                }}
+                                                className="py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-sm transition-all"
+                                            >
+                                                ${amount}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
-                        >
-                            <CheckCircle2 size={24} />
-                            <span>Finalizar</span>
-                        </button>
+                        </div>
+                    )}
+
+                    {payments.length > 0 && (
+                        <div className="mt-6 pt-4 border-t border-slate-200">
+                            <p className="text-sm font-bold text-slate-600 mb-3">Pagos agregados</p>
+                            <div className="space-y-2 mb-4">
+                                {payments.map((p, idx) => (
+                                    <div key={idx} className="bg-white p-3 rounded-xl flex items-center justify-between border border-slate-200">
+                                        <div className="flex items-center gap-3">
+                                            {p.type === "Efectivo" && <Banknote size={18} className="text-emerald-600" />}
+                                            {p.type === "Tarjeta" && <CreditCard size={18} className="text-blue-600" />}
+                                            {p.type === "Transferencia" && <ArrowRightLeft size={18} className="text-purple-600" />}
+                                            <span className="font-semibold">{p.type}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="font-bold">${p.amount.toFixed(2)}</span>
+                                            <button onClick={() => removePayment(idx)} className="p-1 text-slate-300 hover:text-rose-500">
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {paidAmount > 0 && (
+                    <div className="px-6 pb-4">
+                        {remaining > 0 ? (
+                            <div className="flex justify-between items-center py-3 px-4 bg-rose-50 rounded-xl border border-rose-200 mb-4">
+                                <span className="font-bold text-rose-700">Falta por pagar</span>
+                                <span className="text-xl font-black text-rose-700">${remaining.toFixed(2)}</span>
+                            </div>
+                        ) : change > 0 ? (
+                            <div className="flex justify-between items-center py-3 px-4 bg-amber-50 rounded-xl border border-amber-200 mb-4">
+                                <span className="font-bold text-amber-700">Cambio a devolver</span>
+                                <span className="text-xl font-black text-amber-700">${change.toFixed(2)}</span>
+                            </div>
+                        ) : null}
                     </div>
+                )}
+
+                <div className="p-6 border-t border-border">
+                    <button
+                        disabled={paidAmount < total}
+                        onClick={handleComplete}
+                        className={cn(
+                            "w-full py-5 rounded-2xl font-bold text-xl transition-all flex items-center justify-center gap-2 shadow-xl",
+                            paidAmount >= total
+                                ? "bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-500/25"
+                                : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                        )}
+                    >
+                        <CheckCircle2 size={24} />
+                        Completar Venta
+                    </button>
                 </div>
             </div>
         </div>

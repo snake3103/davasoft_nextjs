@@ -3,16 +3,18 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
-import { Plus, Search, Filter, Download, MoreHorizontal, CheckCircle2, Clock, X, Edit, Trash } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Search, Filter, Download, MoreHorizontal, CheckCircle2, Clock, X, Edit, Trash, Printer, FileText } from "lucide-react";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useInvoices } from "@/hooks/useDatabase";
 import { useRouter } from "next/navigation";
+import { ReprintModal } from "@/components/modals/ReprintModal";
 
 export default function VentasPage() {
   const router = useRouter();
   const { data: invoices, isLoading } = useInvoices();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("Todas");
+  const [reprintInvoice, setReprintInvoice] = useState<any>(null);
 
   const filteredInvoices = useMemo(() => {
     if (!invoices) return [];
@@ -128,23 +130,35 @@ export default function VentasPage() {
                 <TableCell>{new Date(invoice.date).toLocaleDateString()}</TableCell>
                 <TableCell>{invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "-"}</TableCell>
                 <TableCell className="font-bold">${Number(invoice.total).toLocaleString()}</TableCell>
-                <TableCell className="text-rose-600 font-medium">$0.00</TableCell>
+                <TableCell className={cn("font-medium", invoice.balance > 0 ? "text-rose-600" : "text-slate-600")}>
+                  {formatCurrency(invoice.balance)}
+                </TableCell>
                 <TableCell>
                   <div className={cn(
                     "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
                     invoice.status === "PAID" ? "bg-emerald-50 text-emerald-600" :
                       ["DRAFT", "SENT"].includes(invoice.status) ? "bg-blue-50 text-blue-600" :
-                        invoice.status === "OVERDUE" ? "bg-rose-50 text-rose-600" : "bg-amber-50 text-amber-600"
+                        invoice.status === "OVERDUE" ? "bg-rose-50 text-rose-600" : 
+                          invoice.status === "PARTIAL" ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-600"
                   )}>
                     {invoice.status === "PAID" && <CheckCircle2 size={12} className="mr-1" />}
                     {["DRAFT", "SENT"].includes(invoice.status) && <Clock size={12} className="mr-1" />}
                     {invoice.status === "PAID" ? "Pagada" :
                       invoice.status === "DRAFT" ? "Borrador" :
-                        invoice.status === "SENT" ? "Abierta" : invoice.status}
+                        invoice.status === "SENT" ? "Abierta" :
+                          invoice.status === "PARTIAL" ? "Parcial" :
+                            invoice.status === "OVERDUE" ? "Vencida" : invoice.status}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end space-x-2">
+                    <button
+                      onClick={() => setReprintInvoice(invoice)}
+                      className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-slate-400 transition-colors"
+                      title="Reimprimir"
+                    >
+                      <Printer size={16} />
+                    </button>
                     <button
                       onClick={() => handleEdit(invoice)}
                       className="p-1.5 hover:bg-blue-50 hover:text-primary rounded-lg text-slate-400 transition-colors"
@@ -180,6 +194,13 @@ export default function VentasPage() {
           </div>
         )}
       </div>
+
+      <ReprintModal
+        isOpen={!!reprintInvoice}
+        onClose={() => setReprintInvoice(null)}
+        invoice={reprintInvoice}
+        type="invoice"
+      />
 
     </AppLayout>
   );
