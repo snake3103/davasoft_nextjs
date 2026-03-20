@@ -3,6 +3,20 @@ import { getAuthContext, unauthorizedResponse, errorResponse } from "@/lib/api-h
 import { invoiceSchema } from "@/lib/schemas/invoice";
 import { generateInvoiceJournalEntry } from "@/app/actions/accounting";
 import { Decimal } from "decimal.js";
+import { logCreate } from "@/lib/activity-log";
+import prisma from "@/lib/prisma";
+
+async function getCurrentShiftId(organizationId: string, userId: string): Promise<string | null> {
+  const shift = await prisma.cashDrawerShift.findFirst({
+    where: {
+      organizationId,
+      userId,
+      status: "OPEN",
+    },
+    select: { id: true },
+  });
+  return shift?.id || null;
+}
 
 export async function GET() {
   const { db } = await getAuthContext();
@@ -38,8 +52,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { db, organizationId } = await getAuthContext();
-  if (!db || !organizationId) return unauthorizedResponse();
+  const { db, session, organizationId } = await getAuthContext();
+  if (!db || !organizationId || !session) return unauthorizedResponse();
 
   try {
     const body = await request.json();
@@ -49,12 +63,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
     }
 
-    const { number, date, dueDate, clientId, subtotal = 0, tax = 0, total = 0, status, items, isPOS = false } = result.data;
+    const { number, date, dueDate, clientId, subtotal = 0, tax = 0, total = 0, status, items, isPOS = false, payments } = result.data;
 
     const client = await db.client.findFirst({ where: { id: clientId, organizationId } });
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 400 });
     }
+
+    // Get current open shift if any
+    const shiftId = await getCurrentShiftId(organizationId, session.user.id);
 
     const invoice = await db.$transaction(async (tx: any) => {
       // 1. Create the invoice
@@ -81,6 +98,22 @@ export async function POST(request: Request) {
         },
         include: { items: true },
       });
+
+      // 1.5. Create payments if provided (POS immediate payment)
+      if (payments && payments.length > 0) {
+        for (const payment of payments) {
+          await tx.payment.create({
+            data: {
+              invoiceId: newInvoice.id,
+              amount: payment.amount,
+              method: payment.method || "CASH",
+              date: new Date(),
+              reference: `PAGO-POS-${Date.now()}`,
+              shiftId,
+            },
+          });
+        }
+      }
 
       // 2. Adjust stock for each item that has a productId and create inventory movement
       for (const item of items) {
@@ -131,6 +164,14 @@ export async function POST(request: Request) {
         // No fallar la creación de la factura, solo loguear el error contable
       }
     }
+
+    // 4. Log activity
+    await logCreate({
+      action: "invoice.create",
+      description: `Factura #${invoice.id} creada${invoice.status === "PAID" ? " (pagada)" : ""}`,
+      entityType: "invoice",
+      entityId: String(invoice.id),
+    });
 
     return NextResponse.json(invoice);
   } catch (error) {

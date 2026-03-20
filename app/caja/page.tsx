@@ -17,8 +17,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CheckoutModal } from "@/components/modals/CheckoutModal";
+import { CashDrawerShiftWidget } from "@/components/cash-register/CashDrawerShiftWidget";
 import { useRouter } from "next/navigation";
 import { useRealtimeTransactions } from "@/hooks/useRealtimeTransactions";
+import { AppLayout } from "@/components/layout/AppLayout";
 
 interface PendingInvoice {
    id: string;
@@ -95,11 +97,15 @@ export default function CajaPage() {
       if (!selectedInvoice) return;
 
       try {
-         // Process payment through API
+         const paymentsFormatted = payments.map((p) => ({
+            amount: p.amount,
+            method: p.type === "Efectivo" ? "CASH" : p.type === "Tarjeta" ? "CREDIT_CARD" : "BANK_TRANSFER",
+         }));
+
          const res = await fetch(`/api/invoices/${selectedInvoice.id}/payments`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ payments }),
+            body: JSON.stringify({ payments: paymentsFormatted }),
          });
 
          if (res.ok) {
@@ -151,66 +157,69 @@ export default function CajaPage() {
    }
 
     return (
-       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+       <AppLayout>
+          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
           <div className="max-w-6xl mx-auto">
-             {/* Header */}
-             <div className="mb-8">
-                {newTransaction && (
-                   <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-pulse">
-                      <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-                         <Bell size={20} className="text-emerald-600" />
-                      </div>
-                      <div>
-                         <p className="font-bold text-emerald-800">Nueva transacción detecteda</p>
-                         <p className="text-sm text-emerald-600">Factura #{newTransaction.number} - ${Number(newTransaction.total || newTransaction.amount || 0).toFixed(2)}</p>
-                      </div>
-                   </div>
-                )}
-                <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                   <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center">
-                      <DollarSign size={24} className="text-white" />
-                   </div>
-                   Caja - Cobros Pendientes
-                </h1>
-               <p className="text-slate-500 mt-2">
+            {/* Header */}
+            <div className="mb-6">
+               {newTransaction && (
+                  <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 animate-pulse">
+                     <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                        <Bell size={20} className="text-emerald-600" />
+                     </div>
+                     <div>
+                        <p className="font-bold text-emerald-800">Nueva transacción detectada</p>
+                        <p className="text-sm text-emerald-600">Factura #{newTransaction.number} - ${Number(newTransaction.total || newTransaction.amount || 0).toFixed(2)}</p>
+                     </div>
+                  </div>
+               )}
+               <h1 className="text-2xl font-black text-slate-800 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center">
+                     <DollarSign size={20} className="text-white" />
+                  </div>
+                  Caja - Cobros Pendientes
+               </h1>
+               <p className="text-slate-500 mt-1 text-sm">
                   Gestiona las facturas pendientes de cobro del punto de venta
                </p>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-               <div className="bg-white rounded-2xl border border-border p-6">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-slate-500">Facturas Pendientes</p>
-                        <p className="text-3xl font-black text-amber-600">{totalCount}</p>
-                     </div>
-                     <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-                        <Receipt size={24} className="text-amber-600" />
-                     </div>
-                  </div>
+            {/* Widgets Row - Todo en una fila horizontal */}
+            <div className="grid grid-cols-4 gap-4 mb-6">
+               {/* Turno de Caja */}
+               <div className="col-span-1">
+                  <CashDrawerShiftWidget />
                </div>
-               <div className="bg-white rounded-2xl border border-border p-6">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-slate-500">Total por Cobrar</p>
-                        <p className="text-3xl font-black text-slate-800">${totalPending.toFixed(2)}</p>
-                     </div>
-                     <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                        <DollarSign size={24} className="text-emerald-600" />
+
+               {/* Stats */}
+               <div className="bg-white rounded-xl border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                     <p className="text-xs text-slate-500 font-medium">Facturas Pendientes</p>
+                     <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                        <Receipt size={16} className="text-amber-600" />
                      </div>
                   </div>
+                  <p className="text-2xl font-black text-amber-600">{totalCount}</p>
                </div>
-               <div className="bg-white rounded-2xl border border-border p-6">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-slate-500">Cobrado Hoy</p>
-                        <p className="text-3xl font-black text-emerald-600">$0.00</p>
-                     </div>
-                     <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                        <CheckCircle size={24} className="text-blue-600" />
+
+               <div className="bg-white rounded-xl border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                     <p className="text-xs text-slate-500 font-medium">Total por Cobrar</p>
+                     <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
+                        <DollarSign size={16} className="text-emerald-600" />
                      </div>
                   </div>
+                  <p className="text-2xl font-black text-slate-800">${totalPending.toFixed(2)}</p>
+               </div>
+
+               <div className="bg-white rounded-xl border border-border p-4">
+                  <div className="flex items-center justify-between mb-2">
+                     <p className="text-xs text-slate-500 font-medium">Cobrado Hoy</p>
+                     <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <CheckCircle size={16} className="text-blue-600" />
+                     </div>
+                  </div>
+                  <p className="text-2xl font-black text-emerald-600">$0.00</p>
                </div>
             </div>
 
@@ -340,18 +349,19 @@ export default function CajaPage() {
             </div>
          </div>
 
-         {/* Checkout Modal */}
-         {selectedInvoice && (
-            <CheckoutModal
-               isOpen={isCheckoutOpen}
-               onClose={() => {
-                  setIsCheckoutOpen(false);
-                  setSelectedInvoice(null);
-               }}
-               onComplete={handlePaymentComplete}
-               total={Number(selectedInvoice.total)}
-            />
-         )}
-      </div>
-   );
+          {/* Checkout Modal */}
+          {selectedInvoice && (
+             <CheckoutModal
+                isOpen={isCheckoutOpen}
+                onClose={() => {
+                   setIsCheckoutOpen(false);
+                   setSelectedInvoice(null);
+                }}
+                onComplete={handlePaymentComplete}
+                total={Number(selectedInvoice.total)}
+             />
+          )}
+       </div>
+       </AppLayout>
+    );
 }

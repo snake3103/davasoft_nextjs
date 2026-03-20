@@ -9,6 +9,11 @@ export const invoiceItemSchema = z.object({
   total: z.coerce.number().optional().default(0),
 });
 
+export const paymentSchema = z.object({
+  amount: z.number().min(0.01, "El monto debe ser mayor a 0"),
+  method: z.enum(["CASH", "CREDIT_CARD", "BANK_TRANSFER", "OTHER"]).default("CASH"),
+});
+
 export const invoiceSchema = z.object({
   clientId: z.string().min(1, "Debes seleccionar un cliente"),
   number: z.string().min(1, "El número de factura es requerido"),
@@ -25,6 +30,7 @@ export const invoiceSchema = z.object({
   total: z.coerce.number().optional(),
   status: z.enum(["DRAFT", "SENT", "PAID", "CANCELLED", "PARTIAL"]).default("DRAFT"),
   isPOS: z.boolean().optional().default(false),
+  payments: z.array(paymentSchema).optional(),
 });
 
 export type InvoiceFormData = z.infer<typeof invoiceSchema>;

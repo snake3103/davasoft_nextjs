@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
+import { logCreate, logUpdate, logDelete } from "@/lib/activity-log";
 
 // Crear un nuevo rol
 export async function createRole(prevState: any, formData: FormData) {
@@ -23,13 +24,21 @@ export async function createRole(prevState: any, formData: FormData) {
     const permissions = permissionsRaw ? permissionsRaw.split(",").filter(Boolean) : [];
 
     // @ts-ignore
-    await (prisma as any).role.create({
+    const createdRole = await (prisma as any).role.create({
       data: {
         name: name.trim(),
         description: description?.trim() || null,
         permissions,
         organizationId: session.user.organizationId,
       },
+    });
+
+    await logCreate({
+      action: "role.create",
+      description: `Creó rol "${createdRole.name}"`,
+      module: "users",
+      entityType: "Role",
+      entityId: createdRole.id,
     });
 
     revalidatePath("/configuracion/roles");

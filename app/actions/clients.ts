@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { logCreate } from "@/lib/activity-log";
 
 const clientSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
@@ -40,6 +41,13 @@ export async function createClient(prevState: any, formData: FormData) {
         ...result.data,
         organizationId: session.user.organizationId,
       },
+    });
+
+    await logCreate({
+      action: "client.create",
+      description: `Creó cliente ${result.data.name}`,
+      module: "clients",
+      entityType: "Client",
     });
 
     revalidatePath("/contactos");

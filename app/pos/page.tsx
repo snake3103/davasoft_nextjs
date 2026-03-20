@@ -145,25 +145,29 @@ export default function PosPage() {
          return;
       }
 
-      const orderNumber = `POS-${Date.now().toString(36).toUpperCase()}`;
+        const orderNumber = `POS-${Date.now().toString(36).toUpperCase()}`;
 
-      const payload = {
-         number: orderNumber,
-         date: new Date().toISOString(),
-         clientId: currentClientId,
-         subtotal: Number(subtotal),
-         tax: Number(itbis),
-         total: Number(total),
-         status: "PAID" as const,
-         isPOS: true,
-         items: cart.map(item => ({
-            productId: item.id,
-            quantity: Number(item.quantity),
-            price: Number(item.price),
-            total: Number(item.price * item.quantity),
-            description: item.name
-         }))
-      };
+        const payload = {
+           number: orderNumber,
+           date: new Date().toISOString(),
+           clientId: currentClientId,
+           subtotal: Number(subtotal),
+           tax: Number(itbis),
+           total: Number(total),
+           status: "PAID" as const,
+           isPOS: true,
+           items: cart.map(item => ({
+              productId: item.id,
+              quantity: Number(item.quantity),
+              price: Number(item.price),
+              total: Number(item.price * item.quantity),
+              description: item.name
+           })),
+           payments: payments.map(p => ({
+              amount: p.amount,
+              method: p.type === "Efectivo" ? "CASH" : p.type === "Tarjeta" ? "CREDIT_CARD" : "BANK_TRANSFER"
+           }))
+        };
 
       try {
          await createInvoice.mutateAsync(payload);

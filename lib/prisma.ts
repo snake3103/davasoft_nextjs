@@ -46,6 +46,18 @@ const MODELS_WITH_ORG = [
   "JournalEntry",
   "JournalLine",
   "Role",
+  "Vehicle",
+  "WorkOrder",
+  "BankAccount",
+  "Income",
+  "InventoryMovement",
+  "CashDrawerShift",
+  "ProductAttribute",
+  "ProductAttributeValue",
+  "BillOfMaterials",
+  "BoMItem",
+  "ProductionOrder",
+  "ProductionConsumption",
 ];
 
 export function getScopedPrisma(organizationId: string) {

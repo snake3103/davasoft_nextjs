@@ -19,7 +19,9 @@ import {
   BookOpen,
   DollarSign,
   HelpCircle,
-  ArrowUpRight
+  ArrowUpRight,
+  Car,
+  Wrench
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -50,6 +52,13 @@ const menuGroups = [
       { icon: ShoppingBag, label: "Compras", href: "/compras" },
       { icon: CreditCard, label: "Gastos", href: "/gastos" },
       { icon: Package, label: "Inventario", href: "/inventario" },
+    ]
+  },
+  {
+    title: "Taller",
+    items: [
+      { icon: Wrench, label: "Órdenes de Servicio", href: "/ordenes-servicio" },
+      { icon: Car, label: "Vehículos", href: "/vehiculos" },
     ]
   },
   {

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agents": {
+    "frontend": {
+      "description": "Especialista en componentes React, Zustand, Tailwind CSS"
+    },
+    "backend": {
+      "description": "Especialista en API, Server Actions, Prisma"
+    },
+    "qa": {
+      "description": "Tests, seguridad, bugs"
+    },
+    "investigador": {
+      "description": "Investigación, documentación, research"
+    }
+  },
+  "skills": [
+    "skills/SKILL.md"
+  ]
+}

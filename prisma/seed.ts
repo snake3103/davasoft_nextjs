@@ -287,7 +287,199 @@ async function main() {
     }
   });
 
+  // 8. Create Test Clients for Workshop
+  const testClients = await Promise.all([
+    prisma.client.upsert({
+      where: { organizationId_idNumber: { organizationId: org.id, idNumber: "001-1234567-0" } },
+      update: {},
+      create: {
+        organizationId: org.id,
+        name: "Juan Pérez",
+        phone: "(809) 555-0101",
+        email: "juan.perez@email.com",
+        idNumber: "001-1234567-0",
+        type: "CLIENT",
+      },
+    }),
+    prisma.client.upsert({
+      where: { organizationId_idNumber: { organizationId: org.id, idNumber: "001-2345678-0" } },
+      update: {},
+      create: {
+        organizationId: org.id,
+        name: "María García",
+        phone: "(809) 555-0202",
+        email: "maria.garcia@email.com",
+        idNumber: "001-2345678-0",
+        type: "CLIENT",
+      },
+    }),
+    prisma.client.upsert({
+      where: { organizationId_idNumber: { organizationId: org.id, idNumber: "001-3456789-0" } },
+      update: {},
+      create: {
+        organizationId: org.id,
+        name: "Carlos López",
+        phone: "(809) 555-0303",
+        email: "carlos.lopez@email.com",
+        idNumber: "001-3456789-0",
+        type: "CLIENT",
+      },
+    }),
+  ]);
+
+  // 9. Create Test Vehicles
+  const vehicles = await Promise.all([
+    prisma.vehicle.upsert({
+      where: { id: "test-vehicle-1" },
+      update: {},
+      create: {
+        id: "test-vehicle-1",
+        organizationId: org.id,
+        clientId: testClients[0].id,
+        brand: "Toyota",
+        model: "Corolla",
+        year: 2020,
+        color: "Rojo",
+        plates: "AAA-001",
+        vin: "1HGBH41JXMN109186",
+        mileage: 45000,
+        cameWithTow: false,
+      },
+    }),
+    prisma.vehicle.upsert({
+      where: { id: "test-vehicle-2" },
+      update: {},
+      create: {
+        id: "test-vehicle-2",
+        organizationId: org.id,
+        clientId: testClients[1].id,
+        brand: "Honda",
+        model: "Civic",
+        year: 2022,
+        color: "Azul",
+        plates: "BBB-002",
+        vin: "2HGES16534H592611",
+        mileage: 25000,
+        cameWithTow: false,
+      },
+    }),
+    prisma.vehicle.upsert({
+      where: { id: "test-vehicle-3" },
+      update: {},
+      create: {
+        id: "test-vehicle-3",
+        organizationId: org.id,
+        clientId: testClients[2].id,
+        brand: "Hyundai",
+        model: "Tucson",
+        year: 2021,
+        color: "Negro",
+        plates: "CCC-003",
+        vin: "KM8JU3AC0DU543217",
+        mileage: 38000,
+        cameWithTow: true,
+      },
+    }),
+    prisma.vehicle.upsert({
+      where: { id: "test-vehicle-4" },
+      update: {},
+      create: {
+        id: "test-vehicle-4",
+        organizationId: org.id,
+        clientId: testClients[0].id,
+        brand: "Kia",
+        model: "Sportage",
+        year: 2023,
+        color: "Blanco",
+        plates: "DDD-004",
+        vin: "5XYZG3AG5DG123456",
+        mileage: 15000,
+        cameWithTow: false,
+      },
+    }),
+  ]);
+
+  // 10. Create Test Work Orders
+  await prisma.workOrder.upsert({
+    where: { id: "test-workorder-1" },
+    update: {},
+    create: {
+      id: "test-workorder-1",
+      organizationId: org.id,
+      clientId: testClients[0].id,
+      vehicleId: vehicles[0].id,
+      number: "OS-0001",
+      status: "COMPLETED",
+      fuelLevel: 75,
+      cameWithTow: false,
+      description: "Cambio de aceite y filtro",
+      workItems: JSON.stringify([
+        { description: "Cambio de aceite", cost: 1500, completed: true },
+        { description: "Cambio de filtro de aire", cost: 500, completed: true },
+      ]),
+      inventory: JSON.stringify({ speedometer: true, radio: true, spareTire: true, jack: true }),
+      notes: "Cliente satisfecho",
+      createdById: user.id,
+      entryDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      exitDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  await prisma.workOrder.upsert({
+    where: { id: "test-workorder-2" },
+    update: {},
+    create: {
+      id: "test-workorder-2",
+      organizationId: org.id,
+      clientId: testClients[1].id,
+      vehicleId: vehicles[1].id,
+      number: "OS-0002",
+      status: "IN_PROGRESS",
+      fuelLevel: 50,
+      cameWithTow: false,
+      description: "Diagnóstico y reparación de sistema de frenos",
+      workItems: JSON.stringify([
+        { description: "Revisión de frenos", cost: 800, completed: true },
+        { description: "Cambio de pastillas", cost: 2500, completed: false },
+        { description: "Alineación", cost: 1000, completed: false },
+      ]),
+      inventory: JSON.stringify({ speedometer: true, radio: true, spareTire: true, tools: false }),
+      notes: "Esperando repuestos",
+      createdById: user.id,
+      entryDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  await prisma.workOrder.upsert({
+    where: { id: "test-workorder-3" },
+    update: {},
+    create: {
+      id: "test-workorder-3",
+      organizationId: org.id,
+      clientId: testClients[2].id,
+      vehicleId: vehicles[2].id,
+      number: "OS-0003",
+      status: "PENDING",
+      fuelLevel: 25,
+      cameWithTow: true,
+      description: "Servicio de mantenimiento general",
+      workItems: JSON.stringify([
+        { description: "Cambio de aceite", cost: 1500, completed: false },
+        { description: "Rotación de neumáticos", cost: 600, completed: false },
+        { description: "Check-up completo", cost: 1200, completed: false },
+      ]),
+      inventory: JSON.stringify({ speedometer: true, radio: true, spareTire: false, jack: false, documents: true }),
+      notes: "Vehículo vino en grúa, revisar daños",
+      createdById: user.id,
+      entryDate: new Date(),
+    },
+  });
+
   console.log("Seeding finished.");
+  console.log("Test data created:");
+  console.log("- 3 Clients");
+  console.log("- 4 Vehicles");
+  console.log("- 3 Work Orders");
 }
 
 main()

@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { inventoryMovementSchema } from "@/lib/schemas/product";
 import { Decimal } from "decimal.js";
+import { logCreate } from "@/lib/activity-log";
 
 export async function createInventoryMovement(prevState: any, formData: FormData) {
   try {
@@ -71,6 +72,14 @@ export async function createInventoryMovement(prevState: any, formData: FormData
       });
 
       return newMovement;
+    });
+
+    await logCreate({
+      action: "inventory.movement",
+      description: `Registró movimiento de inventario: ${movement.type} - ${movement.quantity} unidades`,
+      module: "inventory",
+      entityType: "InventoryMovement",
+      entityId: movement.id,
     });
 
     revalidatePath("/inventario");

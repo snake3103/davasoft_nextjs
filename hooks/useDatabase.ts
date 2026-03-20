@@ -616,3 +616,171 @@ export function useDeletePurchase() {
     },
   });
 }
+
+// --- HOOKS PARA VEHÍCULOS ---
+export function useVehicles() {
+  return useQuery({
+    queryKey: ["vehicles"],
+    queryFn: async () => {
+      const res = await fetch("/api/vehicles");
+      if (!res.ok) throw new Error("Error fetching vehicles");
+      return res.json();
+    },
+  });
+}
+
+export function useVehicle(id: string) {
+  return useQuery({
+    queryKey: ["vehicles", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/vehicles/${id}`);
+      if (!res.ok) throw new Error("Error fetching vehicle");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateVehicle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/vehicles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Error creating vehicle");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+    },
+  });
+}
+
+export function useUpdateVehicle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/vehicles/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Error updating vehicle");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+    },
+  });
+}
+
+export function useDeleteVehicle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/vehicles/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Error deleting vehicle");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+    },
+  });
+}
+
+// --- HOOKS PARA ÓRDENES DE SERVICIO ---
+export function useWorkOrders() {
+  return useQuery({
+    queryKey: ["workOrders"],
+    queryFn: async () => {
+      const res = await fetch("/api/work-orders");
+      if (!res.ok) throw new Error("Error fetching work orders");
+      return res.json();
+    },
+  });
+}
+
+export function useWorkOrder(id: string) {
+  return useQuery({
+    queryKey: ["workOrders", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/work-orders/${id}`);
+      if (!res.ok) throw new Error("Error fetching work order");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/work-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Error creating work order");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workOrders"] });
+    },
+  });
+}
+
+export function useUpdateWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/work-orders/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Error updating work order");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workOrders"] });
+    },
+  });
+}
+
+export function useUpdateWorkOrderStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await fetch(`/api/work-orders/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Error updating status");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workOrders"] });
+    },
+  });
+}
+
+export function useDeleteWorkOrder() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/work-orders/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Error deleting work order");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workOrders"] });
+    },
+  });
+}

@@ -9,6 +9,7 @@ import {
   journalLineSchema,
 } from "@/lib/schemas/accounting";
 import { Decimal } from "decimal.js";
+import { logCreate, logUpdate, logDelete } from "@/lib/activity-log";
 
 // ============================================
 // PLAN DE CUENTAS
@@ -35,11 +36,19 @@ export async function createAccount(prevState: any, formData: FormData) {
       return { error: result.error.issues[0].message };
     }
 
-    await prisma.accountingAccount.create({
+    const createdAccount = await prisma.accountingAccount.create({
       data: {
         ...result.data,
         organizationId: session.user.organizationId,
       },
+    });
+
+    await logCreate({
+      action: "accounting.create",
+      description: `Creó cuenta contable ${createdAccount.name}`,
+      module: "accounting",
+      entityType: "AccountingAccount",
+      entityId: createdAccount.id,
     });
 
     revalidatePath("/contabilidad/plan-cuentas");

@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { invoiceSchema } from "@/lib/schemas/invoice";
 import { generateInvoiceJournalEntry } from "./accounting";
+import { logCreate, logUpdate, logDelete } from "@/lib/activity-log";
 
 export async function createInvoice(prevState: any, formData: FormData) {
   try {
@@ -68,6 +69,15 @@ export async function createInvoice(prevState: any, formData: FormData) {
       await generateInvoiceJournalEntry(invoice.id);
     }
 
+    // Registrar actividad
+    await logCreate({
+      action: "invoice.create",
+      description: `Creó factura ${invoice.number} por $${Number(invoice.total).toFixed(2)}`,
+      module: "invoices",
+      entityType: "Invoice",
+      entityId: invoice.id,
+    });
+
     revalidatePath("/ventas");
     revalidatePath("/contabilidad/asientos");
     return { success: true };
@@ -115,7 +125,11 @@ export async function updateInvoice(id: string, prevState: any, formData: FormDa
       prisma.invoice.update({
         where: { id, organizationId: session.user.organizationId },
         data: {
-          ...result.data,
+          clientId: result.data.clientId,
+          number: result.data.number,
+          date: result.data.date,
+          dueDate: result.data.dueDate,
+          status: result.data.status,
           subtotal,
           tax,
           total,

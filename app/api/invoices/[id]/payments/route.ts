@@ -10,12 +10,25 @@ const paymentSchema = z.object({
   })),
 });
 
+async function getCurrentShiftId(organizationId: string, userId: string): Promise<string | null> {
+  const shift = await prisma.cashDrawerShift.findFirst({
+    where: {
+      organizationId,
+      userId,
+      status: "OPEN",
+    },
+    select: { id: true },
+  });
+  return shift?.id || null;
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   const organizationId = session?.user?.organizationId;
+  const userId = session?.user?.id;
   const { id: invoiceId } = await params;
 
   if (!organizationId) {
@@ -58,6 +71,9 @@ export async function POST(
       newStatus = "PARTIAL";
     }
 
+    // Get current open shift if any
+    const shiftId = userId ? await getCurrentShiftId(organizationId, userId) : null;
+
     // Create payments and update invoice in a transaction
     await prisma.$transaction([
       ...payments.map((payment) =>
@@ -68,6 +84,7 @@ export async function POST(
             method: payment.type as any,
             date: new Date(),
             reference: `PAGO-POS-${Date.now()}`,
+            shiftId,
           },
         })
       ),
@@ -77,7 +94,7 @@ export async function POST(
       }),
     ]);
 
-    return NextResponse.json({ success: true, status: newStatus });
+    return NextResponse.json({ success: true, status: newStatus, shiftId });
   } catch (error) {
     console.error("Error processing payment:", error);
     return NextResponse.json({ error: "Error al procesar pago" }, { status: 500 });

@@ -1,4 +1,128 @@
 {
-  "tasks": [],
-  "members": []
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Implementar nueva feature POS",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "frontend",
+      "dependencies": []
+    },
+    {
+      "id": 2,
+      "title": "Investigar sistema de productos manufacturados y f\u00f3rmulas",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "investigador",
+      "dependencies": []
+    },
+    {
+      "id": 3,
+      "title": "Implementar sistema de productos manufacturados con f\u00f3rmulas",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "backend",
+      "dependencies": []
+    },
+    {
+      "id": 4,
+      "title": "Implementar gesti\u00f3n completa de usuarios: crear, editar, asignar roles",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "backend",
+      "dependencies": []
+    },
+    {
+      "id": 5,
+      "title": "Implementar: historial de actividad usuarios, crear usuarios (no solo invitar), verificar men\u00fas faltantes",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "backend",
+      "dependencies": []
+    },
+    {
+      "id": 6,
+      "title": "Investigar y corregir: Historial de Actividad no registra las ventas",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "backend",
+      "dependencies": []
+    },
+    {
+      "id": 7,
+      "title": "Agregar logging de actividad a todas las acciones del sistema",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "backend",
+      "dependencies": []
+    },
+    {
+      "id": 8,
+      "title": "Redise\u00f1ar p\u00e1gina de Caja - Cobros Pendientes: widgets en fila horizontal (turno caja + stats + totales) sin scroll",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "frontend",
+      "dependencies": []
+    },
+    {
+      "id": 9,
+      "title": "Implementar m\u00f3dulo de \u00d3rdenes de Servicio (Recepci\u00f3n de veh\u00edculos taller)",
+      "status": "COMPLETED",
+      "plan_approved": false,
+      "assigned_to": "backend",
+      "dependencies": []
+    },
+    {
+      "id": 10,
+      "title": "crear listas desplegables paramarca modelo color y datos de prueba",
+      "status": "PENDING",
+      "plan_approved": false,
+      "assigned_to": "director",
+      "dependencies": []
+    }
+  ],
+  "members": [
+    {
+      "name": "Director",
+      "role": "DIRECTOR",
+      "id": "director",
+      "status": "ACTIVE",
+      "description": "L\u00edder. Divide el problema, asigna roles y aprueba planes."
+    },
+    {
+      "name": "Arquitecto",
+      "role": "ARQUITECTO",
+      "id": "arquitecto",
+      "status": "IDLE",
+      "description": "Define estructura, tipos TypeScript y patrones Server Actions"
+    },
+    {
+      "name": "Especialista Frontend",
+      "role": "FRONTEND",
+      "id": "frontend",
+      "status": "ACTIVE",
+      "description": "Componentes React, estado Zustand/Context, Tailwind CSS"
+    },
+    {
+      "name": "Especialista Backend",
+      "role": "BACKEND",
+      "id": "backend",
+      "status": "IDLE",
+      "description": "Rutas API, Server Actions, esquemas Prisma"
+    },
+    {
+      "name": "Investigador",
+      "role": "INVESTIGADOR",
+      "id": "investigador",
+      "status": "IDLE",
+      "description": "Documentaci\u00f3n, an\u00e1lisis de competencia, mejores pr\u00e1cticas"
+    },
+    {
+      "name": "Revisor QA",
+      "role": "QA",
+      "id": "qa",
+      "status": "IDLE",
+      "description": "Tests Vitest/Playwright, seguridad, bugs hidrataci\u00f3n"
+    }
+  ]
 }

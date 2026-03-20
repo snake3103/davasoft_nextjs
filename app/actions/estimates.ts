@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { estimateSchema } from "@/lib/schemas/estimate";
+import { logCreate, logUpdate, logDelete } from "@/lib/activity-log";
 
 export async function createEstimate(prevState: any, formData: FormData) {
   try {
@@ -37,8 +38,8 @@ export async function createEstimate(prevState: any, formData: FormData) {
     const tax = 0; // Por ahora 0, expandible
     const total = subtotal + tax;
 
-    await prisma.$transaction(async (tx) => {
-      await tx.estimate.create({
+    const createdEstimate = await prisma.$transaction(async (tx) => {
+      return await tx.estimate.create({
         data: {
           ...estimateData,
           organizationId: session.user.organizationId!,
@@ -56,6 +57,14 @@ export async function createEstimate(prevState: any, formData: FormData) {
           },
         },
       });
+    });
+
+    await logCreate({
+      action: "estimate.create",
+      description: `Creó cotización ${createdEstimate.number}`,
+      module: "estimates",
+      entityType: "Estimate",
+      entityId: createdEstimate.id,
     });
 
     revalidatePath("/ventas/cotizaciones");

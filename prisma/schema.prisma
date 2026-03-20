@@ -49,6 +49,9 @@ model User {
   accounts      Account[]
   sessions      Session[]
   memberships   Membership[]
+  activityLogs ActivityLog[]
+  cashDrawerShifts CashDrawerShift[]
+  workOrders    WorkOrder[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -70,26 +73,33 @@ model VerificationToken {
 
 // Multitenancy Models
 model Organization {
-  id             String              @id @default(cuid())
-  name           String
-  slug           String              @unique
-  plan           SubscriptionPlan    @default(FREE)
-  members        Membership[]
-  clients        Client[]
-  products       Product[]
-  categories     Category[]
-  invoices       Invoice[]
-  estimates      Estimate[]
-  expenses       Expense[]
-  incomes        Income[]
-  roles          Role[]
-  accounts       AccountingAccount[]
-  journalEntries JournalEntry[]
-  movements      InventoryMovement[]
-  bankAccounts   BankAccount[]
-  posConfig      POSConfig?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
+  id                String              @id @default(cuid())
+  name              String
+  slug              String              @unique
+  plan              SubscriptionPlan    @default(FREE)
+  members           Membership[]
+  clients           Client[]
+  products          Product[]
+  categories        Category[]
+  invoices          Invoice[]
+  estimates         Estimate[]
+  expenses          Expense[]
+  incomes           Income[]
+  roles             Role[]
+  activityLogs      ActivityLog[]
+  accounts          AccountingAccount[]
+  journalEntries    JournalEntry[]
+  movements         InventoryMovement[]
+  bankAccounts      BankAccount[]
+  posConfig         POSConfig?
+  vehicles          Vehicle[]
+  workOrders        WorkOrder[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  productAttributes ProductAttribute[]
+  billOfMaterials   BillOfMaterials[]
+  productionOrders  ProductionOrder[]
+  cashDrawerShifts  CashDrawerShift[]
 }
 
 enum SubscriptionPlan {
@@ -133,6 +143,49 @@ model Membership {
   @@unique([userId, organizationId])
 }
 
+// Historial de actividad de usuarios
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  EXPORT
+  PRINT
+  OTHER
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type           ActivityType
+  action         String       // e.g., "invoice.create", "product.update"
+  description    String       // e.g., "Creó factura FAC-001"
+  
+  // Metadata
+  module         String?      // e.g., "invoices", "products", "users"
+  entityType     String?      // e.g., "Invoice", "Product"
+  entityId       String?
+  
+  // Cambios (para UPDATE)
+  oldValues      String?      // JSON con valores anteriores
+  newValues      String?      // JSON con valores nuevos
+  
+  ipAddress      String?
+  userAgent      String?
+  
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, userId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, module])
+}
+
 // Business Models
 model Client {
   id             String       @id @default(cuid())
@@ -146,8 +199,10 @@ model Client {
   type           ContactType  @default(CLIENT)
   invoices       Invoice[]
   estimates      Estimate[]
-  incomes       Income[]
+  incomes        Income[]
   posConfigs     POSConfig[]
+  vehicles       Vehicle[]
+  workOrders     WorkOrder[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -162,25 +217,45 @@ enum ContactType {
 }
 
 model Product {
-  id             String         @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   description    String?
-  price          Decimal        @db.Decimal(16, 2)
-  stock          Int            @default(0)
+  price          Decimal      @db.Decimal(16, 2)
+  stock          Int          @default(0)
   sku            String?
   categoryId     String?
-  category       Category?      @relation(fields: [categoryId], references: [id])
-  invoiceItems   InvoiceItem[]
-  estimateItems  EstimateItem[]
-  expenseItems   ExpenseItem[]
-  movements      InventoryMovement[]
-  cost           Decimal        @db.Decimal(16, 2) @default(0)
-  minStock       Int            @default(0)
-  costMethod     CostMethod     @default(AVERAGE)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  category       Category?    @relation(fields: [categoryId], references: [id])
+
+  // Tipos de producto para manufactura
+  productType ProductType @default(FINISHED)
+
+  // Atributos configurables
+  hasAttributes       Boolean @default(false)
+  attributeTemplateId String?
+
+  invoiceItems  InvoiceItem[]
+  estimateItems EstimateItem[]
+  expenseItems  ExpenseItem[]
+  movements     InventoryMovement[]
+
+  // BoM donde este producto es componente
+  bomItems BoMItem[]
+
+  // BoM de este producto (si es manufacturado)
+  billsOfMaterials BillOfMaterials[]
+
+  // Atributos de este producto
+  attributeValues ProductAttributeValue[]
+
+  cost                   Decimal                 @default(0) @db.Decimal(16, 2)
+  minStock               Int                     @default(0)
+  costMethod             CostMethod              @default(AVERAGE)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  productionOrders       ProductionOrder[]
+  productionConsumptions ProductionConsumption[]
 
   @@unique([organizationId, sku])
   @@index([organizationId, name])
@@ -193,20 +268,20 @@ enum CostMethod {
 }
 
 model InventoryMovement {
-  id          String            @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  productId   String
-  product     Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
-  type        MovementType
-  quantity    Int
-  unitCost    Decimal           @db.Decimal(16, 2)
-  totalCost  Decimal           @db.Decimal(16, 2)
-  reference  String?
-  sourceType String?
-  sourceId   String?
-  notes      String?
-  createdAt  DateTime          @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type           MovementType
+  quantity       Int
+  unitCost       Decimal      @db.Decimal(16, 2)
+  totalCost      Decimal      @db.Decimal(16, 2)
+  reference      String?
+  sourceType     String?
+  sourceId       String?
+  notes          String?
+  createdAt      DateTime     @default(now())
 
   @@index([organizationId, productId])
   @@index([organizationId, type])
@@ -263,6 +338,7 @@ model Invoice {
   status         InvoiceStatus @default(DRAFT)
   journalEntryId String?       @unique // ID del asiento contable generado
   journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  workOrders     WorkOrder[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -280,7 +356,7 @@ model InvoiceItem {
   description String?
   quantity    Int
   price       Decimal  @db.Decimal(16, 2)
-  tax         Decimal  @db.Decimal(16, 2) @default(0)
+  tax         Decimal  @default(0) @db.Decimal(16, 2)
   total       Decimal  @db.Decimal(16, 2)
 
   @@index([invoiceId])
@@ -373,8 +449,12 @@ model Payment {
   invoice   Invoice?      @relation(fields: [invoiceId], references: [id])
   expenseId String?
   expense   Expense?      @relation(fields: [expenseId], references: [id])
+  shiftId   String?
+  shift     CashDrawerShift? @relation(fields: [shiftId], references: [id])
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+
+  @@index([shiftId])
 }
 
 enum InvoiceStatus {
@@ -400,7 +480,7 @@ enum ExpenseStatus {
 }
 
 enum ExpenseType {
-  EXPENSE  // Gasto operativo
+  EXPENSE // Gasto operativo
   PURCHASE // Factura de compra
 }
 
@@ -487,20 +567,20 @@ model JournalLine {
 }
 
 model BankAccount {
-  id             String        @id @default(cuid())
+  id             String          @id @default(cuid())
   organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   bankName       String
   accountNumber  String
   accountType    BankAccountType @default(CHECKING)
-  currency       String        @default("DOP")
-  initialBalance Decimal       @default(0) @db.Decimal(16, 2)
-  currentBalance Decimal       @default(0) @db.Decimal(16, 2)
-  status         BankStatus    @default(ACTIVE)
+  currency       String          @default("DOP")
+  initialBalance Decimal         @default(0) @db.Decimal(16, 2)
+  currentBalance Decimal         @default(0) @db.Decimal(16, 2)
+  status         BankStatus      @default(ACTIVE)
   description    String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   incomes        Income[]
 
   @@unique([organizationId, accountNumber])
@@ -521,24 +601,24 @@ enum BankStatus {
 }
 
 model Income {
-  id             String        @id @default(cuid())
+  id             String       @id @default(cuid())
   organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   number         String
-  date           DateTime      @default(now())
+  date           DateTime     @default(now())
   description    String?
   clientId       String?
   client         Client?      @relation(fields: [clientId], references: [id])
   categoryId     String?
   category       Category?    @relation(fields: [categoryId], references: [id])
-  amount         Decimal       @db.Decimal(16, 2)
+  amount         Decimal      @db.Decimal(16, 2)
   paymentMethod  String?
   reference      String?
   status         IncomeStatus @default(RECEIVED)
   bankAccountId  String?
   bankAccount    BankAccount? @relation(fields: [bankAccountId], references: [id])
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@unique([organizationId, number])
   @@index([organizationId, date])
@@ -556,40 +636,364 @@ enum IncomeStatus {
 // ============================================
 
 enum POSPrintFormat {
-  TICKET      // 80mm - Tirilla
+  TICKET // 80mm - Tirilla
   HALF_LETTER // Media carta
-  LETTER      // Carta completa
+  LETTER // Carta completa
 }
 
 enum POSType {
-  STANDARD   // Caja normal - facturar y cobrar en el mismo lugar
-  SPLIT      // Facturar en un lado, cobrar en otro
+  STANDARD // Caja normal - facturar y cobrar en el mismo lugar
+  SPLIT // Facturar en un lado, cobrar en otro
 }
 
 model POSConfig {
-  id             String        @id @default(cuid())
-  organizationId String        @unique
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   // Tipo de POS
-  posType        POSType       @default(STANDARD)
-  
+  posType POSType @default(STANDARD)
+
   // Configuración de impresión
-  printFormat    POSPrintFormat @default(TICKET)
-  printCopies   Int            @default(1)
-  autoPrint     Boolean        @default(false)
-  showLogo      Boolean        @default(true)
-  
+  printFormat POSPrintFormat @default(TICKET)
+  printCopies Int            @default(1)
+  autoPrint   Boolean        @default(false)
+  showLogo    Boolean        @default(true)
+
   // Configuración de tienda
   defaultClientId String?
-  defaultClient   Client?      @relation(fields: [defaultClientId], references: [id])
-  
+  defaultClient   Client? @relation(fields: [defaultClientId], references: [id])
+
   // Configuración de impuestos
-  defaultTaxRate Decimal       @default(18) @db.Decimal(5, 2)
-  taxIncluded   Boolean       @default(true)
+  defaultTaxRate Decimal @default(18) @db.Decimal(5, 2)
+  taxIncluded    Boolean @default(true)
+
+  // Estado
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// SISTEMA DE MANUFACTURA - PRODUCTOS Y BoM
+// ==========================================
+
+// Tipo de producto para manufactura
+enum ProductType {
+  FINISHED // Producto terminado
+  SEMI_FINISHED // Sub-ensamble
+  RAW // Materia prima
+  CONFIGURABLE // Producto configurable con atributos
+}
+
+// Atributos de producto (ancho, alto, material, etc.)
+model ProductAttribute {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name         String // "Ancho", "Alto", "Material"
+  code         String // "width", "height", "material"
+  type         String // "number", "text", "select", "boolean"
+  unit         String? // "m", "cm", "mm", "kg"
+  defaultValue String?
+  options      String? // JSON array para tipo "select"
+  isRequired   Boolean @default(false)
+  isGlobal     Boolean @default(true) // Si es global o solo para este producto
+
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  productAttributeValues ProductAttributeValue[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+// Valores de atributos por producto
+model ProductAttributeValue {
+  id          String           @id @default(cuid())
+  productId   String
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeId String
+  attribute   ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  value String // Valor del atributo
+
+  @@unique([productId, attributeId])
+  @@index([productId])
+}
+
+// Bill of Materials (Lista de materiales)
+model BillOfMaterials {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  productId String // Producto que se manufactura
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  version   String  @default("1.0") // "1.0", "2.0"
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+
+  // Para BoM por variantes (dejar null para BoM base)
+  variantMatch String? // JSON con condiciones de variante
+
+  totalCost Decimal @default(0) @db.Decimal(16, 2)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  boMItems  BoMItem[]
+
+  @@unique([organizationId, productId, version])
+  @@index([organizationId, productId])
+  @@index([organizationId])
+}
+
+// Items de la BoM (materiales componentes)
+model BoMItem {
+  id    String          @id @default(cuid())
+  bomId String
+  bom   BillOfMaterials @relation(fields: [bomId], references: [id], onDelete: Cascade)
+
+  componentId String // Producto componente
+  component   Product @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  quantity        Decimal @default(1) @db.Decimal(16, 4) // Cantidad base
+  quantityFormula String? // Fórmula: "{width} * {height} / 10000"
+
+  // Configuración avanzada
+  isOptional   Boolean @default(false)
+  scrapPercent Decimal @default(0) @db.Decimal(5, 2) // % desperdicio
+
+  // Para BoM por variantes
+  applyToVariants String? // JSON array de variant IDs donde aplica
+
+  // Secuencia para orden
+  sequence Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bomId])
+  @@index([componentId])
+}
+
+// Órdenes de producción
+enum ProductionOrderStatus {
+  DRAFT
+  CONFIRMED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model ProductionOrder {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  number    String // "OP-0001"
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity Decimal @db.Decimal(16, 4) // Cantidad a producir
+
+  // Atributos seleccionados (para productos configurables)
+  attributes String? // JSON: {"width": 1.2, "height": 1.5}
+
+  status ProductionOrderStatus @default(DRAFT)
+
+  // Costos
+  totalCost Decimal @default(0) @db.Decimal(16, 2)
+
+  // Fechas
+  plannedDate DateTime?
+  startDate   DateTime?
+  endDate     DateTime?
+
+  notes String?
+
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  productionConsumptions ProductionConsumption[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, productId])
+  @@index([organizationId, status])
+}
+
+// Items consumidos en orden de producción
+model ProductionConsumption {
+  id                String          @id @default(cuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+
+  componentId String
+  component   Product @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  quantityRequired Decimal @db.Decimal(16, 4) // Cantidad necesaria
+  quantityConsumed Decimal @default(0) @db.Decimal(16, 4) // Consumida
+
+  createdAt DateTime @default(now())
+
+  @@index([productionOrderId])
+}
+
+// ============================================
+// Cash Drawer / Shift Management
+// ============================================
+
+model CashDrawerShift {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  payments       Payment[]
+  
+  // Shift info
+  status         ShiftStatus       @default(OPEN)
+  openingDate    DateTime          @default(now())
+  closingDate    DateTime?
+  
+  // Money at start and end
+  openingAmount  Decimal           @default(0) @db.Decimal(16, 2) // Dinero inicial
+  expectedAmount Decimal?          @db.Decimal(16, 2) // Dinero esperado al cerrar
+  actualAmount   Decimal?          @db.Decimal(16, 2) // Dinero real contado
+  
+  // Notes
+  openingNotes   String?           @db.Text // Notas al abrir
+  closingNotes   String?           @db.Text // Notas al cerrar (incluye arqueo)
+  
+  // Sales summary (calculated on close)
+  totalCashSales      Decimal @default(0) @db.Decimal(16, 2) // Ventas en efectivo
+  totalCardSales      Decimal @default(0) @db.Decimal(16, 2) // Ventas con tarjeta
+  totalTransferSales  Decimal @default(0) @db.Decimal(16, 2) // Ventas por transferencia
+  totalSales          Decimal @default(0) @db.Decimal(16, 2) // Total ventas
+  totalPayments       Decimal @default(0) @db.Decimal(16, 2) // Total recibido
+  totalChangeGiven    Decimal @default(0) @db.Decimal(16, 2) // Cambio dado
+  
+  // Transactions count
+  transactionCount Int          @default(0) // Número de transacciones
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([organizationId, status])
+  @@index([organizationId, userId])
+  @@index([organizationId, openingDate])
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+  AUDITED // Auditoría completada
+}
+
+// ============================================
+// SISTEMA DE TALLER - Órdenes de Servicio
+// ============================================
+
+// Vehículos de clientes
+model Vehicle {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Cliente propietario
+  clientId       String
+  client         Client       @relation(fields: [clientId], references: [id])
+
+  // Datos del vehículo
+  brand          String       // Marca: Toyota, Honda, etc.
+  model          String       // Modelo: Corolla, Civic, etc.
+  year           Int?         // Año del vehículo
+  color          String?
+  plates         String?      // Placas
+  vin            String?      // Número de serie (VIN)
+  mileage        Int?         @default(0) // Kilometraje
+  cameWithTow    Boolean      @default(false) // Vino en grúa
+  
+  // Historial de ingresos
+  workOrders     WorkOrder[]
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, clientId])
+  @@index([organizationId, plates])
+}
+
+// Estado de la orden de servicio
+enum WorkOrderStatus {
+  PENDING      // Pendiente de revisión
+  IN_PROGRESS  // En proceso
+  COMPLETED    // Completada
+  DELIVERED    // Entregada al cliente
+  CANCELLED    // Cancelada
+}
+
+// Órden de servicio / Recepción de vehículo
+model WorkOrder {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Vehículo
+  vehicleId      String
+  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  // Cliente (duplicado para acceso rápido)
+  clientId       String
+  client         Client          @relation(fields: [clientId], references: [id])
+
+  // Número de orden
+  number         String          // Ej: "OS-0001"
+  
+  // Fechas
+  entryDate      DateTime        @default(now()) // Fecha de ingreso
+  exitDate       DateTime?       // Fecha de salida/entrega
   
   // Estado
-  isActive      Boolean       @default(true)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  status         WorkOrderStatus @default(PENDING)
+
+  // Datos del ingreso
+  fuelLevel      Int             @default(50) // Nivel de gasolina (0-100%)
+  cameWithTow    Boolean         @default(false)
+  
+  // Descripción del trabajo
+  description    String?         @db.Text // Descripción del trabajo a realizar
+  
+  // Items/trabajos a realizar (JSON array para trabajos)
+  // Estructura: [{"description": "Cambio de filtro", "cost": 500, "completed": false}]
+  workItems      String?         @db.Text 
+
+  // Inventario del vehículo al ingreso (checkboxes)
+  // Estructura: {"speedometer": true, "radio": true, "spareTire": false, ...}
+  inventory      String?         @db.Text
+  
+  // Daños preexistentes (checkboxes del diagrama)
+  // Estructura: {"bumperFront": false, "hood": true, "doorLeft": false, ...}
+  preExistingDamage String?     @db.Text
+
+  // Notas adicionales
+  notes          String?         @db.Text
+
+  // Relación con factura (si se facturó)
+  invoiceId      String?
+  invoice        Invoice?       @relation(fields: [invoiceId], references: [id])
+
+  // Usuario que creó la orden
+  createdById    String
+  createdBy      User            @relation(fields: [createdById], references: [id])
+
+  // Auditoría
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, vehicleId])
+  @@index([organizationId, clientId])
 }

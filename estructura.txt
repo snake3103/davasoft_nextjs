@@ -1,36 +1,154 @@
 .
+├── AGENTS.md
+├── ANALISIS_SISTEMA_YANNERIBOT.md
+├── AUDITORIA_TECNICA.md
+├── DEPLOYMENT.md
 ├── PRODUCCION.md
+├── PRODUCTOS_MANUFACTURA.md
 ├── README.md
+├── SEGURIDAD_MULTI_EMPRESA.md
+├── SKILL.md
+├── SKILL_Original.md
 ├── __tests__
-│   └── invoice.test.ts
+│   ├── invoice.test.ts
+│   ├── schemas.test.ts
+│   └── utils.test.ts
 ├── app
+│   ├── actions
+│   │   ├── accounting.ts
+│   │   ├── auth.ts
+│   │   ├── cash-register.ts
+│   │   ├── clients.ts
+│   │   ├── estimates.ts
+│   │   ├── inventory.ts
+│   │   ├── invoices.ts
+│   │   ├── payments.ts
+│   │   ├── products.ts
+│   │   └── roles.ts
 │   ├── api
+│   │   ├── accounting
+│   │   │   ├── accounts
+│   │   │   │   └── route.ts
+│   │   │   ├── entries
+│   │   │   │   ├── [id]
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   └── reports
+│   │   │       ├── balance-sheet
+│   │   │       │   └── route.ts
+│   │   │       ├── income-statement
+│   │   │       │   └── route.ts
+│   │   │       └── trial-balance
+│   │   │           └── route.ts
+│   │   ├── activity-logs
+│   │   │   └── route.ts
 │   │   ├── auth
 │   │   │   └── [...nextauth]
 │   │   │       └── route.ts
+│   │   ├── bank-accounts
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
+│   │   ├── cash-register
+│   │   │   └── route.ts
+│   │   ├── categories
+│   │   │   └── route.ts
 │   │   ├── clients
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
 │   │   │   └── route.ts
 │   │   ├── dashboard
 │   │   │   └── stats
 │   │   │       └── route.ts
+│   │   ├── estimates
+│   │   │   ├── [id]
+│   │   │   │   ├── invoice
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
 │   │   ├── expenses
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
+│   │   ├── incomes
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
+│   │   ├── inventory
+│   │   │   ├── movements
+│   │   │   │   └── route.ts
 │   │   │   └── route.ts
 │   │   ├── invoices
+│   │   │   ├── [id]
+│   │   │   │   ├── payments
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── route.ts
+│   │   │   │   └── status
+│   │   │   │       └── route.ts
 │   │   │   └── route.ts
+│   │   ├── memberships
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
+│   │   ├── payments
+│   │   │   └── pending
+│   │   │       └── route.ts
+│   │   ├── pos
+│   │   │   ├── config
+│   │   │   │   └── route.ts
+│   │   │   └── pending-invoices
+│   │   │       └── route.ts
 │   │   ├── products
+│   │   │   ├── attributes
+│   │   │   │   └── route.ts
+│   │   │   ├── bom
+│   │   │   │   └── route.ts
 │   │   │   └── route.ts
-│   │   └── search
-│   │       └── route.ts
+│   │   ├── purchases
+│   │   │   └── route.ts
+│   │   ├── realtime
+│   │   │   └── transactions
+│   │   │       └── route.ts
+│   │   ├── reports
+│   │   │   ├── client-statement
+│   │   │   │   └── route.ts
+│   │   │   ├── pos-closure
+│   │   │   │   └── route.ts
+│   │   │   ├── provider-statement
+│   │   │   │   └── route.ts
+│   │   │   ├── purchases-book
+│   │   │   │   └── route.ts
+│   │   │   └── sales-book
+│   │   │       └── route.ts
+│   │   ├── roles
+│   │   │   ├── [id]
+│   │   │   │   └── route.ts
+│   │   │   └── route.ts
+│   │   ├── search
+│   │   │   └── route.ts
+│   │   └── users
+│   ├── ayuda
+│   │   └── page.tsx
 │   ├── bancos
 │   │   ├── conciliacion
 │   │   │   └── page.tsx
 │   │   ├── page.tsx
 │   │   └── transferencia
 │   │       └── page.tsx
+│   ├── caja
+│   │   └── page.tsx
+│   ├── compras
+│   │   ├── nueva
+│   │   │   └── page.tsx
+│   │   └── page.tsx
 │   ├── configuracion
+│   │   ├── actividad
+│   │   │   └── page.tsx
 │   │   ├── correos
 │   │   │   └── page.tsx
 │   │   ├── impuestos
+│   │   │   └── page.tsx
+│   │   ├── manufactura
 │   │   │   └── page.tsx
 │   │   ├── moneda
 │   │   │   └── page.tsx
@@ -41,18 +159,44 @@
 │   │   │   └── page.tsx
 │   │   ├── plantillas
 │   │   │   └── page.tsx
+│   │   ├── pos
+│   │   │   └── page.tsx
 │   │   ├── roles
+│   │   │   ├── [id]
+│   │   │   │   └── editar
+│   │   │   │       ├── EditRoleForm.tsx
+│   │   │   │       └── page.tsx
+│   │   │   ├── nuevo
+│   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   └── usuarios
+│   │       ├── AssignRoleSelect.tsx
+│   │       └── page.tsx
+│   ├── contabilidad
+│   │   ├── asientos
+│   │   │   ├── [id]
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx
+│   │   ├── plan-cuentas
+│   │   │   └── page.tsx
+│   │   └── reportes
 │   │       └── page.tsx
 │   ├── contactos
 │   │   ├── [id]
+│   │   │   ├── editar
+│   │   │   │   └── page.tsx
 │   │   │   └── page.tsx
 │   │   ├── nuevo
 │   │   │   └── page.tsx
 │   │   └── page.tsx
 │   ├── cotizaciones
+│   │   ├── [id]
+│   │   │   └── editar
+│   │   │       └── page.tsx
+│   │   ├── nueva
+│   │   │   └── page.tsx
 │   │   └── page.tsx
+│   ├── error.tsx
 │   ├── favicon.ico
 │   ├── gastos
 │   │   ├── nuevo
@@ -60,20 +204,34 @@
 │   │   └── page.tsx
 │   ├── globals.css
 │   ├── ingresos
-│   │   └── nuevo
-│   │       └── page.tsx
+│   │   ├── nuevo
+│   │   │   └── page.tsx
+│   │   └── page.tsx
 │   ├── inventario
+│   │   ├── movimientos
+│   │   │   └── page.tsx
 │   │   ├── nuevo
 │   │   │   └── page.tsx
 │   │   └── page.tsx
 │   ├── layout.tsx
 │   ├── login
 │   │   └── page.tsx
+│   ├── not-found.tsx
 │   ├── page.tsx
+│   ├── pagos
+│   │   └── page.tsx
 │   ├── pos
 │   │   ├── layout.tsx
 │   │   └── page.tsx
+│   ├── registro
+│   │   └── page.tsx
+│   ├── reportes
+│   │   └── estados-cuenta
+│   │       └── page.tsx
 │   └── ventas
+│       ├── [id]
+│       │   └── editar
+│       │       └── page.tsx
 │       ├── nueva
 │       │   └── page.tsx
 │       └── page.tsx
@@ -81,8 +239,21 @@
 ├── auth.ts
 ├── components
 │   ├── Providers.tsx
+│   ├── accounting
+│   │   ├── AccountModal.tsx
+│   │   └── JournalEntryModal.tsx
+│   ├── cash-register
+│   │   └── CashDrawerShiftWidget.tsx
+│   ├── contacts
+│   │   └── ContactForm.tsx
 │   ├── dashboard
 │   │   └── TransactionModal.tsx
+│   ├── estimates
+│   │   └── EstimateForm.tsx
+│   ├── forms
+│   │   └── InvoiceForm.tsx
+│   ├── inventory
+│   │   └── ProductForm.tsx
 │   ├── layout
 │   │   ├── AppLayout.tsx
 │   │   ├── Header.tsx
@@ -93,29 +264,52 @@
 │   │   ├── ExpenseModal.tsx
 │   │   ├── InvoiceModal.tsx
 │   │   ├── ProductModal.tsx
-│   │   ├── QuoteModal.tsx
-│   │   └── ReceiptModal.tsx
+│   │   ├── ReceiptModal.tsx
+│   │   └── ReprintModal.tsx
+│   ├── payments
+│   │   └── PaymentModal.tsx
 │   ├── providers
 │   │   └── QueryProvider.tsx
 │   └── ui
+│       ├── Autocomplete.tsx
 │       └── Table.tsx
 ├── eslint.config.mjs
 ├── estructura.txt
 ├── hooks
-│   └── useDatabase.ts
+│   ├── useDatabase.ts
+│   ├── usePrinter.ts
+│   └── useRealtimeTransactions.ts
 ├── lib
+│   ├── activity-log.ts
+│   ├── api-helpers.ts
+│   ├── api-rate-limit.ts
 │   ├── config.ts
 │   ├── decimal.utils.ts
+│   ├── env.ts
+│   ├── formulas
+│   │   ├── engine.ts
+│   │   └── index.ts
 │   ├── invoice-action.example.ts
+│   ├── pdf-reports.ts
+│   ├── permissions.ts
 │   ├── prisma.ts
+│   ├── rate-limit.ts
 │   ├── schemas
-│   │   └── invoice.ts
+│   │   ├── accounting.ts
+│   │   ├── client.ts
+│   │   ├── estimate.ts
+│   │   ├── expense.ts
+│   │   ├── income.ts
+│   │   ├── invoice.ts
+│   │   ├── product.ts
+│   │   └── register.ts
 │   └── utils.ts
 ├── messages
 │   └── es.json
+├── middleware.ts
 ├── next-env.d.ts
 ├── next.config.ts
-├── open-next.config.ts
+├── opencode.json
 ├── package-lock.json
 ├── package.json
 ├── playwright-report
@@ -130,22 +324,40 @@
 │   ├── schema.prisma
 │   └── seed.ts
 ├── prisma.config.ts
-├── proxy.ts
 ├── public
 │   ├── file.svg
 │   ├── globe.svg
 │   ├── next.svg
 │   ├── vercel.svg
 │   └── window.svg
+├── scripts
+│   ├── backups
+│   │   ├── backup-db.sh
+│   │   └── restore-db.sh
+│   ├── check-db.ts
+│   ├── debug-db.ts
+│   ├── fix-auth.ts
+│   ├── fix-memberships.ts
+│   └── manufactura
+│       └── seed.ts
+├── sentry.client.config.ts
+├── sentry.edge.config.ts
+├── sentry.server.config.ts
 ├── store
 │   └── useStore.ts
+├── team_manager.py
+├── team_manager_Original.py
 ├── test-results
 ├── tests
-│   └── auth.spec.ts
+│   ├── api.spec.ts
+│   ├── auth.spec.ts
+│   ├── invoice.spec.ts
+│   └── navigation.spec.ts
 ├── tsconfig.json
 ├── tsconfig.tsbuildinfo
+├── types
+│   └── next-auth.d.ts
 ├── vitest.config.ts
-├── vitest.setup.ts
-└── wrangler.toml
+└── vitest.setup.ts
 
-57 directories, 92 files
+142 directories, 219 files

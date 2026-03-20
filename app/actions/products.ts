@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { productSchema } from "@/lib/schemas/product";
+import { logCreate, logUpdate, logDelete } from "@/lib/activity-log";
 
 export async function createProduct(prevState: any, formData: FormData) {
   try {
@@ -34,6 +35,13 @@ export async function createProduct(prevState: any, formData: FormData) {
         ...result.data,
         organizationId: session.user.organizationId!,
       },
+    });
+
+    await logCreate({
+      action: "product.create",
+      description: `Creó producto ${result.data.name}`,
+      module: "products",
+      entityType: "Product",
     });
 
     revalidatePath("/inventario");

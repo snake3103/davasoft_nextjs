@@ -13,7 +13,9 @@ import {
   ChevronRight,
   Globe,
   Mail,
-  Zap
+  Zap,
+  Package,
+  Activity
 } from "lucide-react";
 
 const sections = [
@@ -34,6 +36,13 @@ const sections = [
     ]
   },
   {
+    title: "Manufactura",
+    icon: Package,
+    items: [
+      { id: "manufactura", name: "Atributos y BoM", desc: "Configura atributos de productos y listas de materiales", icon: Package, href: "/configuracion/manufactura" },
+    ]
+  },
+  {
     title: "Documentos",
     icon: FileText,
     items: [
@@ -48,6 +57,7 @@ const sections = [
     items: [
       { id: "users", name: "Usuarios", desc: "Gestiona quién tiene acceso a tu cuenta", icon: Users, href: "/configuracion/usuarios" },
       { id: "roles", name: "Roles y Permisos", desc: "Define qué puede hacer cada colaborador", icon: ShieldCheck, href: "/configuracion/roles" },
+      { id: "activity", name: "Historial de Actividad", desc: "Ver todas las acciones realizadas", icon: Activity, href: "/configuracion/actividad" },
     ]
   }
 ];
