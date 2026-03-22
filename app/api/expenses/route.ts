@@ -4,16 +4,22 @@ import { expenseSchema } from "@/lib/schemas/expense";
 import { generateExpenseJournalEntry } from "@/app/actions/accounting";
 import { Decimal } from "decimal.js";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { db, organizationId } = await getAuthContext();
   if (!db || !organizationId) return unauthorizedResponse();
 
   try {
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get("type"); // "EXPENSE", "PURCHASE", or null for all
+    
+    const whereClause: any = { organizationId };
+    if (type) {
+      whereClause.type = type;
+    }
+    // Si no hay tipo, muestra todos (EXPENSE y PURCHASE)
+    
     const expenses = await db.expense.findMany({
-      where: { 
-        organizationId,
-        type: "EXPENSE", // Solo gastos operativos, no compras
-      },
+      where: whereClause,
       include: { category: true },
       orderBy: { date: "desc" },
     });
@@ -42,7 +48,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
     }
 
-    const { number, date, type, provider, categoryId, total, status, items } = result.data;
+    const { number, date, type, provider, categoryId, total, subtotal, taxId, taxName, taxRate, taxAmount, status, items } = result.data;
     console.log("Creating expense with status:", status);
 
     const expense = await db.$transaction(async (tx: any) => {
@@ -54,6 +60,11 @@ export async function POST(request: Request) {
           type: type || "EXPENSE", // Default to EXPENSE for regular expenses
           provider,
           categoryId,
+          subtotal: Number(subtotal || total || 0),
+          taxId: taxId || null,
+          taxName: taxName || null,
+          taxRate: taxRate ? Number(taxRate) : null,
+          taxAmount: Number(taxAmount || 0),
           total: Number(total),
           status: status || "PENDING", // Regular expenses are usually pending
           organizationId,

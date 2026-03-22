@@ -10,7 +10,7 @@
     },
     {
       "id": 2,
-      "title": "Investigar sistema de productos manufacturados y f\u00f3rmulas",
+      "title": "Investigar sistema de productos manufacturados",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "investigador",
@@ -18,7 +18,7 @@
     },
     {
       "id": 3,
-      "title": "Implementar sistema de productos manufacturados con f\u00f3rmulas",
+      "title": "Implementar sistema de productos manufacturados",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "backend",
@@ -26,7 +26,7 @@
     },
     {
       "id": 4,
-      "title": "Implementar gesti\u00f3n completa de usuarios: crear, editar, asignar roles",
+      "title": "Implementar gestión completa de usuarios",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "backend",
@@ -34,7 +34,7 @@
     },
     {
       "id": 5,
-      "title": "Implementar: historial de actividad usuarios, crear usuarios (no solo invitar), verificar men\u00fas faltantes",
+      "title": "Historial de actividad usuarios",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "backend",
@@ -42,7 +42,7 @@
     },
     {
       "id": 6,
-      "title": "Investigar y corregir: Historial de Actividad no registra las ventas",
+      "title": "Corregir Historial de Actividad",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "backend",
@@ -50,7 +50,7 @@
     },
     {
       "id": 7,
-      "title": "Agregar logging de actividad a todas las acciones del sistema",
+      "title": "Agregar logging de actividad",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "backend",
@@ -58,7 +58,7 @@
     },
     {
       "id": 8,
-      "title": "Redise\u00f1ar p\u00e1gina de Caja - Cobros Pendientes: widgets en fila horizontal (turno caja + stats + totales) sin scroll",
+      "title": "Rediseñar página de Caja",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "frontend",
@@ -66,7 +66,7 @@
     },
     {
       "id": 9,
-      "title": "Implementar m\u00f3dulo de \u00d3rdenes de Servicio (Recepci\u00f3n de veh\u00edculos taller)",
+      "title": "Implementar módulo de Órdenes de Servicio",
       "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "backend",
@@ -74,11 +74,369 @@
     },
     {
       "id": 10,
-      "title": "crear listas desplegables paramarca modelo color y datos de prueba",
-      "status": "PENDING",
+      "title": "Crear listas marca modelo color",
+      "status": "COMPLETED",
       "plan_approved": false,
       "assigned_to": "director",
       "dependencies": []
+    },
+    {
+      "id": 11,
+      "title": "FASE1-1: Multi-bodegas",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "priority": "HIGH",
+      "sprint": 1,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 12,
+      "title": "FASE1-2: Alertas de stock bajo",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "priority": "HIGH",
+      "sprint": 1,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 13,
+      "title": "FASE1-3: Import/Export Excel",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "priority": "HIGH",
+      "sprint": 2,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 14,
+      "title": "FASE1-4: Variantes de productos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "priority": "HIGH",
+      "sprint": 2,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 15,
+      "title": "FASE1-5: Campos fiscales en Contactos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "priority": "HIGH",
+      "sprint": 3,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 16,
+      "title": "FASE1-6: Crédito por Cliente",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "priority": "HIGH",
+      "sprint": 3,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 17,
+      "title": "FASE1-7: Descuentos por ítem",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "priority": "MEDIUM",
+      "sprint": 3,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 18,
+      "title": "FASE1-8: Centro de Costos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "priority": "HIGH",
+      "sprint": 4,
+      "phase": "FASE 1"
+    },
+    {
+      "id": 19,
+      "title": "FASE2-1: Conciliación Bancaria",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "priority": "HIGH",
+      "sprint": 5,
+      "phase": "FASE 2"
+    },
+    {
+      "id": 20,
+      "title": "FASE2-2: Importación Extractos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "priority": "HIGH",
+      "sprint": 5,
+      "phase": "FASE 2"
+    },
+    {
+      "id": 21,
+      "title": "FASE2-3: UI Conciliación",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "priority": "HIGH",
+      "sprint": 6,
+      "phase": "FASE 2"
+    },
+    {
+      "id": 22,
+      "title": "FASE2-4: Flujo de Caja",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "priority": "MEDIUM",
+      "sprint": 7,
+      "phase": "FASE 2"
+    },
+    {
+      "id": 23,
+      "title": "FASE2-5: Gestión de Cheques",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "priority": "MEDIUM",
+      "sprint": 7,
+      "phase": "FASE 2"
+    },
+    {
+      "id": 24,
+      "title": "FASE3-1: Modelo Activos Fijos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "FixedAsset, AssetCategory, AssetDepreciation models",
+      "priority": "HIGH",
+      "sprint": 8,
+      "phase": "FASE 3 - Activos Fijos"
+    },
+    {
+      "id": 25,
+      "title": "FASE3-2: API Activos Fijos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [24],
+      "description": "CRUD endpoints, depreciación automática, asientos contables",
+      "priority": "HIGH",
+      "sprint": 8,
+      "phase": "FASE 3 - Activos Fijos"
+    },
+    {
+      "id": 26,
+      "title": "FASE3-3: UI Activos Fijos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [24],
+      "description": "Página de activos, CRUD, reportes de depreciación",
+      "priority": "HIGH",
+      "sprint": 9,
+      "phase": "FASE 3 - Activos Fijos"
+    },
+    {
+      "id": 27,
+      "title": "FASE3-4: Sistema de Retenciones",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "Retention model, ISR, IVA, retenciones en facturas",
+      "priority": "HIGH",
+      "sprint": 10,
+      "phase": "FASE 3 - Activos Fijos"
+    },
+    {
+      "id": 28,
+      "title": "FASE3-5: Certificados de Retención",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [27],
+      "description": "Generación de certificados PDF, historial",
+      "priority": "MEDIUM",
+      "sprint": 10,
+      "phase": "FASE 3 - Activos Fijos"
+    },
+    {
+      "id": 29,
+      "title": "FASE3-6: Ajustes por Diferencia en Cambio",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "Asistente de ajustes cambiarios",
+      "priority": "MEDIUM",
+      "sprint": 11,
+      "phase": "FASE 3 - Activos Fijos"
+    },
+    {
+      "id": 30,
+      "title": "FASE4-1: Reporte 606/607 (Libro Compras/Ventas)",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "Reportes fiscales para DGII (RD) - Backend API completada",
+      "priority": "HIGH",
+      "sprint": 12,
+      "phase": "FASE 4 - Reportes Fiscales"
+    },
+    {
+      "id": 31,
+      "title": "FASE4-2: Reportes de Rentabilidad",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "Rentabilidad por producto y cliente - Backend API completada",
+      "priority": "HIGH",
+      "sprint": 13,
+      "phase": "FASE 4 - Reportes Fiscales"
+    },
+    {
+      "id": 32,
+      "title": "FASE4-3: Estado de Cuenta Aging",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [],
+      "description": "Cuentas por cobrar/pagar vencidas - UI completada",
+      "priority": "MEDIUM",
+      "sprint": 13,
+      "phase": "FASE 4 - Reportes Fiscales"
+    },
+    {
+      "id": 33,
+      "title": "FASE5-1: Kanban Órdenes de Servicio",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [],
+      "description": "Vista kanban drag-and-drop con 6 columnas",
+      "priority": "HIGH",
+      "sprint": 14,
+      "phase": "FASE 5 - Taller y POS"
+    },
+    {
+      "id": 34,
+      "title": "FASE5-2: Asignación de Mecánicos",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [33],
+      "description": "Modal para asignar mecánico a cada trabajo - Completado",
+      "priority": "HIGH",
+      "sprint": 14,
+      "phase": "FASE 5 - Taller y POS"
+    },
+    {
+      "id": 35,
+      "title": "FASE5-3: Cuadre de Caja POS",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [],
+      "description": "Reporte de cierre de turno - Completada",
+      "priority": "HIGH",
+      "sprint": 15,
+      "phase": "FASE 5 - Taller y POS"
+    },
+    {
+      "id": 36,
+      "title": "FASE6-1: Sistema de Notificaciones",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "Bell icon con lista de notificaciones, marcar como leídas, eliminar",
+      "priority": "MEDIUM",
+      "sprint": 16,
+      "phase": "FASE 6 - Integraciones"
+    },
+    {
+      "id": 37,
+      "title": "FASE6-2: Búsqueda Global (Ctrl+K)",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [],
+      "description": "Modal con atajo Ctrl+K, búsqueda de clientes, productos, vehículos, órdenes",
+      "priority": "MEDIUM",
+      "sprint": 17,
+      "phase": "FASE 6 - Integraciones"
+    },
+    {
+      "id": 38,
+      "title": "SECURITY: Reemplazar xlsx por exceljs",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "Corregir vulnerabilidades CVE en sheetjs (xlsx) - 11 archivos migrados a exceljs",
+      "priority": "HIGH",
+      "sprint": 18,
+      "phase": "MANTENIMIENTO"
+    },
+    {
+      "id": 39,
+      "title": "SECURITY: Actualizar Prisma 6.12.0",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "infra",
+      "dependencies": [],
+      "description": "Fix vulnerabilidad effect en Prisma - Downgrade a 6.12.0",
+      "priority": "HIGH",
+      "sprint": 18,
+      "phase": "MANTENIMIENTO"
+    },
+    {
+      "id": 40,
+      "title": "FEATURE: Dashboard KPIs",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [],
+      "description": "Dashboard con métricas: Ventas, Inventario, Órdenes, Cash Flow - Actualización cada 30s",
+      "priority": "MEDIUM",
+      "sprint": 18,
+      "phase": "NUEVAS FEATURES"
+    },
+    {
+      "id": 41,
+      "title": "FEATURE: Dark Mode",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "frontend",
+      "dependencies": [],
+      "description": "Toggle tema claro/oscuro con persistencia en localStorage",
+      "priority": "MEDIUM",
+      "sprint": 18,
+      "phase": "NUEVAS FEATURES"
+    },
+    {
+      "id": 42,
+      "title": "FEATURE: Backup/Restore DB UI",
+      "status": "COMPLETED",
+      "plan_approved": true,
+      "assigned_to": "backend",
+      "dependencies": [],
+      "description": "UI para crear, descargar y eliminar backups de PostgreSQL via pg_dump",
+      "priority": "MEDIUM",
+      "sprint": 18,
+      "phase": "NUEVAS FEATURES"
     }
   ],
   "members": [
@@ -87,42 +445,42 @@
       "role": "DIRECTOR",
       "id": "director",
       "status": "ACTIVE",
-      "description": "L\u00edder. Divide el problema, asigna roles y aprueba planes."
+      "description": "Líder del equipo"
     },
     {
       "name": "Arquitecto",
       "role": "ARQUITECTO",
       "id": "arquitecto",
       "status": "IDLE",
-      "description": "Define estructura, tipos TypeScript y patrones Server Actions"
+      "description": "Estructura y patrones"
     },
     {
       "name": "Especialista Frontend",
       "role": "FRONTEND",
       "id": "frontend",
-      "status": "ACTIVE",
-      "description": "Componentes React, estado Zustand/Context, Tailwind CSS"
+      "status": "IDLE",
+      "description": "Componentes React, Tailwind"
     },
     {
       "name": "Especialista Backend",
       "role": "BACKEND",
       "id": "backend",
       "status": "IDLE",
-      "description": "Rutas API, Server Actions, esquemas Prisma"
+      "description": "API, Prisma, Server Actions"
     },
     {
       "name": "Investigador",
       "role": "INVESTIGADOR",
       "id": "investigador",
       "status": "IDLE",
-      "description": "Documentaci\u00f3n, an\u00e1lisis de competencia, mejores pr\u00e1cticas"
+      "description": "Documentación y research"
     },
     {
       "name": "Revisor QA",
       "role": "QA",
       "id": "qa",
       "status": "IDLE",
-      "description": "Tests Vitest/Playwright, seguridad, bugs hidrataci\u00f3n"
+      "description": "Tests y bugs"
     }
   ]
 }

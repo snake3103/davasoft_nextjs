@@ -2,32 +2,54 @@
 
 import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Save, X, Plus, Trash2, Search, Package, Loader2, ArrowLeft, User, FileText, Calendar, Building2 } from "lucide-react";
+import { Save, X, Plus, Trash2, Search, Package, Loader2, ArrowLeft, User, FileText, Calendar, Building2, Calculator, ChevronDown, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useCategories, useProducts, useCreateExpense, useClients } from "@/hooks/useDatabase";
+import { useCategories, useProducts, useCreatePurchase, useClients, useTaxes } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
 
 import { ContactSearch, CategorySearch, ProductSearch } from "@/components/ui/Autocomplete";
+import { Select } from "@/components/ui/Select";
 
 export default function NuevaCompraPage() {
     const router = useRouter();
     const { data: categories = [] } = useCategories();
     const { data: products = [] } = useProducts();
     const { data: contacts = [] } = useClients();
-    const createExpense = useCreateExpense();
+    const { data: taxes = [] } = useTaxes();
+    const createPurchase = useCreatePurchase();
+    const { showToast } = useToast();
 
     const providers = contacts.filter((c: any) => c.type === "PROVIDER" || c.type === "BOTH");
+    const activeTaxes = taxes.filter((t: any) => t.isActive);
 
     const [formData, setFormData] = useState({
-        number: `COMP-${Math.floor(Math.random() * 90000) + 10000}`,
+        number: "",
         date: new Date().toISOString().split("T")[0],
         provider: "",
         categoryId: "",
         items: [{ productId: "", description: "", quantity: 1, price: 0, total: 0 }],
         status: "PAID",
+        taxId: "",
+        taxIncluded: false,
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [showTaxDropdown, setShowTaxDropdown] = useState(false);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    // Generar número de compra solo en cliente para evitar hydration mismatch
+    useEffect(() => {
+        if (!formData.number) {
+            setFormData(prev => ({
+                ...prev,
+                number: `COMP-${Math.floor(Math.random() * 90000) + 10000}`
+            }));
+        }
+    }, []);
+
+    const selectedTax = taxes.find((t: any) => t.id === formData.taxId);
 
     const validate = () => {
         const e: Record<string, string> = {};
@@ -39,20 +61,37 @@ export default function NuevaCompraPage() {
     };
 
     const handleSave = async () => {
+        setErrorMessage(null);
         if (!validate()) return;
         try {
-            const total = formData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-            console.log("Creating expense with data:", { ...formData, total });
-            const result = await createExpense.mutateAsync({
+            const subtotalCalc = formData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+            let taxAmountCalc = 0;
+            
+            if (selectedTax) {
+                if (selectedTax.type === "PERCENTAGE") {
+                    taxAmountCalc = subtotalCalc * (selectedTax.value / 100);
+                } else {
+                    taxAmountCalc = selectedTax.value;
+                }
+            }
+            
+            const totalCalc = subtotalCalc + taxAmountCalc;
+            
+            const result = await createPurchase.mutateAsync({
                 ...formData,
-                total,
+                subtotal: subtotalCalc,
+                taxName: selectedTax?.name || null,
+                taxRate: selectedTax?.type === "PERCENTAGE" ? selectedTax.value : null,
+                taxAmount: taxAmountCalc,
+                total: totalCalc,
                 items: formData.items
             });
-            console.log("Expense created:", result);
-            router.push("/compras");
+            showToast("success", "Compra creada exitosamente!");
+            setTimeout(() => router.push("/compras"), 1000);
         } catch (err: any) {
-            console.error("Error creating expense:", err);
-            alert(err.message);
+            console.error("Error creating purchase:", err);
+            setErrorMessage(err.message || "Error al crear la compra");
+            showToast("error", err.message || "Error al crear la compra");
         }
     };
 
@@ -65,7 +104,18 @@ export default function NuevaCompraPage() {
         setFormData({ ...formData, items: newItems });
     };
 
-    const total = formData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+    const subtotal = formData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
+    
+    const calculateTax = () => {
+        if (!selectedTax) return 0;
+        if (selectedTax.type === "PERCENTAGE") {
+            return subtotal * (selectedTax.value / 100);
+        }
+        return selectedTax.value;
+    };
+    
+    const taxAmount = calculateTax();
+    const total = subtotal + taxAmount;
 
     return (
         <AppLayout>
@@ -80,13 +130,27 @@ export default function NuevaCompraPage() {
                     </div>
                     <button
                         onClick={handleSave}
-                        disabled={createExpense.isPending}
+                        disabled={createPurchase.isPending}
                         className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 flex items-center disabled:opacity-50"
                     >
-                        {createExpense.isPending ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Save size={18} className="mr-2" />}
+                        {createPurchase.isPending ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Save size={18} className="mr-2" />}
                         Guardar Compra
                     </button>
                 </div>
+
+                {/* Mensajes de éxito/error */}
+                {successMessage && (
+                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-6 py-4 rounded-xl flex items-center gap-3 animate-pulse">
+                        <CheckCircle size={20} />
+                        {successMessage}
+                    </div>
+                )}
+                {errorMessage && (
+                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-6 py-4 rounded-xl flex items-center gap-3">
+                        <X size={20} />
+                        {errorMessage}
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 space-y-6">
@@ -189,23 +253,83 @@ export default function NuevaCompraPage() {
                         <div className="bg-white rounded-2xl border border-border p-6 shadow-sm sticky top-6">
                             <h3 className="text-xs font-bold text-slate-400 uppercase mb-6">Resumen de Compra</h3>
                             <div className="space-y-4">
-                                <div className="flex justify-between text-sm"><span className="text-slate-500">Subtotal</span><span className="font-bold text-slate-700">${total.toLocaleString()}</span></div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-500">Subtotal</span>
+                                    <span className="font-bold text-slate-700">${subtotal.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</span>
+                                </div>
+                                
+                                {/* Selector de Impuesto */}
+                                <div className="pt-4 border-t border-border">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-2">Impuesto</label>
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowTaxDropdown(!showTaxDropdown)}
+                                            className="w-full flex items-center justify-between bg-slate-50 border border-border rounded-xl px-4 py-2.5 text-sm"
+                                        >
+                                            <span className={selectedTax ? "text-slate-700 font-medium" : "text-slate-400"}>
+                                                {selectedTax ? `${selectedTax.name} (${selectedTax.type === "PERCENTAGE" ? selectedTax.value + "%" : "$" + selectedTax.value})` : "Sin impuesto"}
+                                            </span>
+                                            <ChevronDown size={16} className="text-slate-400" />
+                                        </button>
+                                        {showTaxDropdown && (
+                                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-border rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setFormData({ ...formData, taxId: "" }); setShowTaxDropdown(false); }}
+                                                    className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 border-b border-border"
+                                                >
+                                                    Sin impuesto
+                                                </button>
+                                                {activeTaxes.map((tax: any) => (
+                                                    <button
+                                                        key={tax.id}
+                                                        type="button"
+                                                        onClick={() => { setFormData({ ...formData, taxId: tax.id }); setShowTaxDropdown(false); }}
+                                                        className={cn(
+                                                            "w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 flex justify-between",
+                                                            tax.id === formData.taxId && "bg-primary/5",
+                                                            tax.id !== formData.taxId && "border-b border-border"
+                                                        )}
+                                                    >
+                                                        <span>{tax.name}</span>
+                                                        <span className="text-slate-400">
+                                                            {tax.type === "PERCENTAGE" ? `${tax.value}%` : `$${tax.value}`}
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {selectedTax && (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-500 flex items-center gap-1">
+                                            <Calculator size={14} />
+                                            {selectedTax.name}
+                                        </span>
+                                        <span className="font-bold text-rose-600">${taxAmount.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                )}
+                                
                                 <div className="pt-4 border-t border-border flex justify-between items-center">
                                     <span className="text-base font-bold text-slate-800">Total</span>
-                                    <span className="text-2xl font-black text-primary">${total.toLocaleString()}</span>
+                                    <span className="text-2xl font-black text-primary">${total.toLocaleString("es-DO", { minimumFractionDigits: 2 })}</span>
                                 </div>
                             </div>
                             <div className="mt-8 space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase">Estado de Pago</label>
-                                    <select
+                                    <Select
                                         value={formData.status}
-                                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                        className="w-full bg-slate-50 border border-border rounded-xl px-4 py-2.5 text-sm font-bold"
-                                    >
-                                        <option value="PAID">Pagado</option>
-                                        <option value="PENDING">Pendiente / Por Pagar</option>
-                                    </select>
+                                        onChange={(val) => setFormData({ ...formData, status: val })}
+                                        options={[
+                                            { value: "PAID", label: "Pagado", description: "La compra ya fue pagada" },
+                                            { value: "PENDING", label: "Pendiente / Por Pagar", description: "La compra está pendiente de pago" },
+                                        ]}
+                                        placeholder="Seleccionar estado..."
+                                    />
                                 </div>
                             </div>
                         </div>

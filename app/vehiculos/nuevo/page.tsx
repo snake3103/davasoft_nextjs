@@ -7,6 +7,7 @@ import { useClients } from "@/hooks/useDatabase";
 import { useCreateVehicle } from "@/hooks/useDatabase";
 import { ArrowLeft, Save } from "lucide-react";
 import { vehicleBrands, vehicleColors, getModelsForBrand } from "@/lib/vehicle-catalog";
+import { Select } from "@/components/ui/Select";
 
 export default function NewVehiclePage() {
   const router = useRouter();
@@ -80,19 +81,19 @@ export default function NewVehiclePage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Cliente *
             </label>
-            <select
-              required
+            <Select
               value={formData.clientId}
-              onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-              className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-            >
-              <option value="">Seleccionar cliente</option>
-              {clients.map((client: any) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setFormData({ ...formData, clientId: val })}
+              options={[
+                { value: "", label: "Seleccionar cliente", description: "Buscar cliente..." },
+                ...clients.map((client: any) => ({ 
+                  value: client.id, 
+                  label: client.name,
+                  description: client.email || undefined
+                })),
+              ]}
+              placeholder="Buscar cliente..."
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -100,38 +101,36 @@ export default function NewVehiclePage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Marca *
               </label>
-              <select
-                required
+              <Select
                 value={formData.brand}
-                onChange={(e) => setFormData({ ...formData, brand: e.target.value, model: "" })}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="">Seleccionar marca</option>
-                {vehicleBrands.map((brand) => (
-                  <option key={brand.value} value={brand.value}>
-                    {brand.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, brand: val, model: "" })}
+                options={[
+                  { value: "", label: "Seleccionar marca", description: "Buscar marca..." },
+                  ...vehicleBrands.map((brand) => ({ 
+                    value: brand.value, 
+                    label: brand.label
+                  })),
+                ]}
+                placeholder="Buscar marca..."
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Modelo *
               </label>
-              <select
-                required
+              <Select
                 value={formData.model}
-                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                onChange={(val) => setFormData({ ...formData, model: val })}
                 disabled={!formData.brand}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-slate-100"
-              >
-                <option value="">Seleccionar modelo</option>
-                {availableModels.map((model) => (
-                  <option key={model.value} value={model.value}>
-                    {model.label}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: "", label: "Seleccionar modelo", description: "Primero seleccione marca" },
+                  ...availableModels.map((model) => ({ 
+                    value: model.value, 
+                    label: model.label
+                  })),
+                ]}
+                placeholder="Buscar modelo..."
+              />
             </div>
           </div>
 
@@ -140,38 +139,35 @@ export default function NewVehiclePage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Año
               </label>
-              <select
+              <Select
                 value={formData.year}
-                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="">Seleccionar año</option>
-                {Array.from({ length: 30 }, (_, i) => {
-                  const year = new Date().getFullYear() - i;
-                  return (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  );
-                })}
-              </select>
+                onChange={(val) => setFormData({ ...formData, year: val })}
+                options={[
+                  { value: "", label: "Seleccionar año", description: "Buscar año..." },
+                  ...Array.from({ length: 30 }, (_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return { value: String(year), label: String(year) };
+                  }),
+                ]}
+                placeholder="Buscar año..."
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Color
               </label>
-              <select
+              <Select
                 value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                className="w-full px-4 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="">Seleccionar color</option>
-                {vehicleColors.map((color) => (
-                  <option key={color.value} value={color.value}>
-                    {color.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, color: val })}
+                options={[
+                  { value: "", label: "Seleccionar color", description: "Buscar color..." },
+                  ...vehicleColors.map((color) => ({ 
+                    value: color.value, 
+                    label: color.label
+                  })),
+                ]}
+                placeholder="Buscar color..."
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">

@@ -53,11 +53,11 @@ export async function GET() {
       db.product.count({
         where: { organizationId },
       }),
-      db.product.count({
-        where: {
-          organizationId,
-          minStock: { gt: 0 },
-        },
+      // Contar productos con stock bajo (stock <= minStock Y minStock > 0)
+      // Necesitamos filtrar en memoria porque Prisma no soporta comparaciones de columnas
+      db.product.findMany({
+        where: { organizationId },
+        select: { id: true, stock: true, minStock: true },
       }),
       db.invoice.findMany({
         where: { organizationId },
@@ -97,12 +97,10 @@ export async function GET() {
       .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
       .slice(0, 6);
 
-    const lowStockCount = await db.product.count({
-      where: {
-        organizationId,
-        minStock: { gt: 0 },
-      },
-    });
+    // Filtrar productos agotados (stock = 0) O con stock bajo (stock <= minStock Y minStock > 0)
+    const lowStockCount = lowStockProducts.filter(
+      (p: any) => p.stock === 0 || (p.minStock > 0 && p.stock <= p.minStock)
+    ).length;
 
     const monthlyData: Record<string, { sales: number; expenses: number }> = {};
     const months = [];

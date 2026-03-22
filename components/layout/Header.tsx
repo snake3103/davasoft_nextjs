@@ -2,10 +2,12 @@
 
 import { Bell, Search, UserCircle, PlusCircle, HelpCircle, LogOut, X, Loader2, User, FileText, Package } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useStore } from "@/store/useStore";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useStore } from "@/store/useStore";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 interface SearchResult {
   id: string;
@@ -16,7 +18,7 @@ interface SearchResult {
 }
 
 export function Header() {
-  const { setTransactionModalOpen, notifications, removeNotification, addNotification } = useStore();
+  const { setTransactionModalOpen } = useStore();
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Search state
@@ -27,7 +29,6 @@ export function Header() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   const handleHelpClick = () => {
-    addNotification("Centro de ayuda cargando...", "info");
     alert("Centro de ayuda: Estamos preparando la documentación para ti. Por ahora, contacta a soporte@davasoft.com");
   };
 
@@ -144,50 +145,8 @@ export function Header() {
         </button>
 
         <div className="flex items-center space-x-4 text-slate-500">
-          <div className="relative">
-            <button
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="p-2 hover:bg-slate-50 rounded-full transition-colors relative"
-            >
-              <Bell size={20} />
-              {notifications.length > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-              )}
-            </button>
-
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-border overflow-hidden z-50">
-                <div className="p-4 border-b border-border flex items-center justify-between bg-slate-50">
-                  <h3 className="text-sm font-bold text-slate-800">Notificaciones</h3>
-                  <button onClick={() => setShowNotifications(false)} className="text-slate-400 hover:text-slate-600">
-                    <X size={16} />
-                  </button>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.length === 0 ? (
-                    <div className="p-8 text-center">
-                      <Bell className="mx-auto h-8 w-8 text-slate-200 mb-2" />
-                      <p className="text-sm text-slate-500">No hay notificaciones nuevas</p>
-                    </div>
-                  ) : (
-                    notifications.map((n) => (
-                      <div key={n.id} className="p-4 border-b border-border last:border-0 hover:bg-slate-50 transition-colors flex justify-between items-start">
-                        <div>
-                          <p className={`text-xs font-medium ${n.type === 'error' ? 'text-rose-600' : n.type === 'success' ? 'text-emerald-600' : 'text-blue-600'}`}>
-                            {n.type.toUpperCase()}
-                          </p>
-                          <p className="text-sm text-slate-700 mt-1">{n.message}</p>
-                        </div>
-                        <button onClick={() => removeNotification(n.id)} className="text-slate-300 hover:text-slate-500">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          <NotificationBell />
+          <ThemeToggle />
 
           <button
             onClick={handleHelpClick}

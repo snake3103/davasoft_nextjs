@@ -16,7 +16,8 @@ import {
    Zap,
    Receipt,
    CreditCard,
-   Banknote
+   Banknote,
+   Calculator
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -446,20 +447,29 @@ export default function PosPage() {
                   </div>
                </div>
 
-                 <div className="flex items-center gap-3">
-                    {/* Indicador de modo POS */}
-                    <div className={cn(
-                       "px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5",
-                       config.posType === "SPLIT" 
-                          ? "bg-blue-100 text-blue-700" 
-                          : "bg-emerald-100 text-emerald-700"
-                    )}>
-                       {config.posType === "SPLIT" ? (
-                          <><Receipt size={14} /> Facturar</>
-                       ) : (
-                          <><Zap size={14} /> Caja Normal</>
-                       )}
-                    </div>
+                  <div className="flex items-center gap-3">
+                     {/* Botón Cuadre de Caja */}
+                     <Link
+                        href="/pos/cuadre"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+                     >
+                        <Calculator size={14} />
+                        Cuadre
+                     </Link>
+                     
+                     {/* Indicador de modo POS */}
+                     <div className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5",
+                        config.posType === "SPLIT" 
+                           ? "bg-blue-100 text-blue-700" 
+                           : "bg-emerald-100 text-emerald-700"
+                     )}>
+                        {config.posType === "SPLIT" ? (
+                           <><Receipt size={14} /> Facturar</>
+                        ) : (
+                           <><Zap size={14} /> Caja Normal</>
+                        )}
+                     </div>
                     <div className="text-right hidden md:block">
                      <p className="text-xs text-slate-400">{new Date().toLocaleDateString("es-DO", { weekday: 'short', month: 'short', day: 'numeric' })}</p>
                      <p className="text-xs text-slate-500 flex items-center gap-1 justify-end">

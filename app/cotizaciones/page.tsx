@@ -6,24 +6,33 @@ import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, Download, X, Edit, Trash, CheckCircle2, Clock, Ban, AlertCircle, Loader2, FileCheck, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEstimates, useDeleteEstimate, useConvertToInvoice } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ReprintModal } from "@/components/modals/ReprintModal";
 
 export default function CotizacionesPage() {
     const router = useRouter();
-    const { data: quotes = [], isLoading } = useEstimates();
+    const { data: quotes = [], isLoading, refetch } = useEstimates();
     const deleteEstimate = useDeleteEstimate();
     const convertToInvoice = useConvertToInvoice();
+    const { showToast } = useToast();
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("Todas");
     const [reprintQuote, setReprintQuote] = useState<any>(null);
+    
+    // Modal de eliminación
+    const [deleteModal, setDeleteModal] = useState<{ open: boolean; quote: any }>({ open: false, quote: null });
+    
+    // Modal de convertir a factura
+    const [convertModal, setConvertModal] = useState<{ open: boolean; quote: any }>({ open: false, quote: null });
 
     const filteredQuotes = useMemo(() => {
         return quotes.filter((quote: any) => {
             const matchesSearch =
-                quote.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                quote.client?.name.toLowerCase().includes(searchQuery.toLowerCase());
+                quote.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                quote.client?.name?.toLowerCase().includes(searchQuery.toLowerCase());
 
             const matchesStatus = statusFilter === "Todas" || quote.status === statusFilter;
 
@@ -31,13 +40,35 @@ export default function CotizacionesPage() {
         });
     }, [quotes, searchQuery, statusFilter]);
 
-    const handleDelete = async (id: string) => {
-        if (confirm("¿Estás seguro de que deseas eliminar esta cotización?")) {
-            try {
-                await deleteEstimate.mutateAsync(id);
-            } catch (error) {
-                alert("Error al eliminar la cotización");
-            }
+    const handleDeleteClick = (quote: any) => {
+        setDeleteModal({ open: true, quote });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteModal.quote) return;
+        try {
+            await deleteEstimate.mutateAsync(deleteModal.quote.id);
+            showToast("success", "Cotización eliminada exitosamente");
+            setDeleteModal({ open: false, quote: null });
+            refetch();
+        } catch (error) {
+            showToast("error", "Error al eliminar la cotización");
+        }
+    };
+
+    const handleConvertClick = (quote: any) => {
+        setConvertModal({ open: true, quote });
+    };
+
+    const handleConfirmConvert = async () => {
+        if (!convertModal.quote) return;
+        try {
+            await convertToInvoice.mutateAsync(convertModal.quote.id);
+            showToast("success", "Cotización convertida a factura exitosamente");
+            setConvertModal({ open: false, quote: null });
+            router.push("/ventas");
+        } catch (error: any) {
+            showToast("error", error.message || "Error al convertir a factura");
         }
     };
 
@@ -155,16 +186,7 @@ export default function CotizacionesPage() {
                                             <Printer size={16} />
                                         </button>
                                         <button
-                                            onClick={async () => {
-                                                if (confirm("¿Deseas convertir esta cotización en una factura?")) {
-                                                    try {
-                                                        await convertToInvoice.mutateAsync(quote.id);
-                                                        router.push("/ventas");
-                                                    } catch (err: any) {
-                                                        alert(err.message);
-                                                    }
-                                                }
-                                            }}
+                                            onClick={() => handleConvertClick(quote)}
                                             className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-lg text-slate-400 transition-colors"
                                             title="Facturar"
                                             disabled={convertToInvoice.isPending || quote.status === "ACCEPTED"}
@@ -179,7 +201,7 @@ export default function CotizacionesPage() {
                                             <Edit size={16} />
                                         </Link>
                                         <button
-                                            onClick={() => handleDelete(quote.id)}
+                                            onClick={() => handleDeleteClick(quote)}
                                             className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400 transition-colors"
                                             title="Eliminar"
                                         >
@@ -212,6 +234,27 @@ export default function CotizacionesPage() {
                 onClose={() => setReprintQuote(null)}
                 invoice={reprintQuote}
                 type="estimate"
+            />
+
+            <ConfirmDialog
+                open={deleteModal.open}
+                onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+                title="Eliminar Cotización"
+                description={`¿Estás seguro de que deseas eliminar la cotización ${deleteModal.quote?.number}? Esta acción no se puede deshacer.`}
+                confirmText="Eliminar"
+                onConfirm={handleConfirmDelete}
+                loading={deleteEstimate.isPending}
+            />
+
+            <ConfirmDialog
+                open={convertModal.open}
+                onOpenChange={(open) => setConvertModal({ ...convertModal, open })}
+                title="Convertir a Factura"
+                description={`¿Deseas convertir la cotización ${convertModal.quote?.number} en una factura?`}
+                confirmText="Convertir"
+                onConfirm={handleConfirmConvert}
+                loading={convertToInvoice.isPending}
+                variant="info"
             />
         </AppLayout>
     );

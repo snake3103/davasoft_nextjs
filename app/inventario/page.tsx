@@ -5,18 +5,22 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, MoreVertical, Package, ShoppingBag, Edit, Trash2, Grid, List, AlertTriangle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProductModal } from "@/components/modals/ProductModal";
 import { useProducts, useCategories } from "@/hooks/useDatabase";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export default function InventarioPage() {
+  const { showToast } = useToast();
   const { data: products, isLoading } = useProducts();
   const { data: categories } = useCategories();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; product: any | null }>({ open: false, product: null });
 
   const filteredProducts = useMemo(() => {
     if (!products) return [];
@@ -39,6 +43,30 @@ export default function InventarioPage() {
     return products.filter((p: any) => p.minStock > 0 && p.stock <= p.minStock).length;
   }, [products]);
 
+  // Eliminar producto
+  const handleDeleteClick = (product: any) => {
+    setDeleteModal({ open: true, product });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.product) return;
+    try {
+      const res = await fetch(`/api/products/${deleteModal.product.id}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        showToast("success", "Producto eliminado exitosamente");
+        setDeleteModal({ open: false, product: null });
+      } else {
+        const data = await res.json();
+        showToast("error", data.error || "Error al eliminar");
+      }
+    } catch (err) {
+      showToast("error", "Error de conexión");
+    }
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -55,13 +83,12 @@ export default function InventarioPage() {
               <Eye size={18} className="mr-2" />
               Movimientos
             </Link>
-            <button
-              onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
-              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center shadow-sm"
-            >
-              <Plus size={18} className="mr-2" />
-              Nuevo Producto
-            </button>
+            <Link href="/inventario/nuevo">
+              <Button>
+                <Plus size={18} className="mr-2" />
+                Nuevo Producto
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -182,11 +209,17 @@ export default function InventarioPage() {
                   )}
                   <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="flex space-x-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditingProduct(product); setIsModalOpen(true); }}
+                      <Link
+                        href={`/inventario/${product.id}/editar`}
                         className="p-1.5 bg-white rounded-lg shadow text-slate-600 hover:text-primary"
                       >
                         <Edit size={14} />
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteClick(product)}
+                        className="p-1.5 bg-white rounded-lg shadow text-slate-600 hover:text-rose-600"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
@@ -207,12 +240,15 @@ export default function InventarioPage() {
                       )}>{product.stock}</p>
                     </div>
                   </div>
+                  {product.tax && (
+                    <p className="text-[10px] text-emerald-600 mt-1">{product.tax.name}</p>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <Table headers={["Producto", "Categoría", "SKU", "Precio", "Stock", "Mín. Stock", "Estado", "Acciones"]}>
+          <Table headers={["Producto", "Categoría", "SKU", "Precio", "Stock", "Impuesto", "Estado", "Acciones"]}>
             {filteredProducts.map((product: any) => (
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.name}</TableCell>
@@ -224,7 +260,7 @@ export default function InventarioPage() {
                   product.stock > 10 ? "text-emerald-600" :
                     product.stock > 0 ? "text-amber-600" : "text-rose-600"
                 )}>{product.stock}</TableCell>
-                <TableCell>{product.minStock || 0}</TableCell>
+                <TableCell className="text-emerald-600">{product.tax?.name || "-"}</TableCell>
                 <TableCell>
                   {product.stock === 0 ? (
                     <span className="px-2 py-1 bg-rose-100 text-rose-700 text-xs font-bold rounded-full">Agotado</span>
@@ -235,12 +271,20 @@ export default function InventarioPage() {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <button
-                    onClick={() => { setEditingProduct(product); setIsModalOpen(true); }}
-                    className="p-1.5 hover:bg-blue-50 hover:text-primary rounded-lg text-slate-400"
-                  >
-                    <Edit size={16} />
-                  </button>
+                  <div className="flex items-center justify-end space-x-1">
+                    <Link
+                      href={`/inventario/${product.id}/editar`}
+                      className="p-1.5 hover:bg-blue-50 hover:text-primary rounded-lg text-slate-400"
+                    >
+                      <Edit size={16} />
+                    </Link>
+                    <button
+                      onClick={() => handleDeleteClick(product)}
+                      className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -251,15 +295,25 @@ export default function InventarioPage() {
           <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
             <Package size={48} className="mx-auto text-slate-300 mb-4" />
             <h3 className="text-lg font-bold text-slate-700">No se encontraron productos</h3>
-            <p className="text-slate-500 mt-1">Intenta ajustar tus filtros</p>
+            <p className="text-slate-500 mt-1 mb-4">Intenta ajustar tus filtros o crea un nuevo producto</p>
+            <Link href="/inventario/nuevo">
+              <Button>
+                <Plus size={18} className="mr-2" />
+                Crear Producto
+              </Button>
+            </Link>
           </div>
         )}
       </div>
 
-      <ProductModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        initialData={editingProduct}
+      {/* Modal de confirmación de eliminación */}
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+        title="Eliminar Producto"
+        description={`¿Estás seguro de que deseas eliminar el producto "${deleteModal.product?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={handleConfirmDelete}
       />
     </AppLayout>
   );

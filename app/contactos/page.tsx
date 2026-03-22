@@ -8,18 +8,23 @@ import { Plus, Search, Filter, UserCircle, Mail, Phone, MoreHorizontal, UserChec
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
 import { useClients, useDeleteClient } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export default function ContactosPage() {
-  const { data: contacts = [], isLoading } = useClients();
+  const { data: contacts = [], isLoading, refetch } = useClients();
   const deleteClient = useDeleteClient();
-
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("Todos");
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; contact: any }>({ open: false, contact: null });
 
   const filteredContacts = useMemo(() => {
     return contacts.filter((contact: any) => {
       const matchesSearch =
-        contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (contact.email && contact.email.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesType = typeFilter === "Todos" ||
@@ -31,13 +36,19 @@ export default function ContactosPage() {
     });
   }, [contacts, searchQuery, typeFilter]);
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este contacto?")) {
-      try {
-        await deleteClient.mutateAsync(id);
-      } catch (error: any) {
-        alert("Error al eliminar el contacto: " + error.message);
-      }
+  const handleDeleteClick = (contact: any) => {
+    setDeleteModal({ open: true, contact });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.contact) return;
+    try {
+      await deleteClient.mutateAsync(deleteModal.contact.id);
+      showToast("success", "Contacto eliminado exitosamente");
+      setDeleteModal({ open: false, contact: null });
+      refetch();
+    } catch (error: any) {
+      showToast("error", error.message || "Error al eliminar");
     }
   };
 
@@ -154,7 +165,7 @@ export default function ContactosPage() {
                       <Edit size={16} />
                     </Link>
                     <button
-                      onClick={() => handleDelete(contact.id)}
+                      onClick={() => handleDeleteClick(contact)}
                       className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400 transition-colors"
                       title="Eliminar"
                     >
@@ -176,6 +187,15 @@ export default function ContactosPage() {
         )}
       </div>
 
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+        title="Eliminar Contacto"
+        description={`¿Estás seguro de que deseas eliminar el contacto "${deleteModal.contact?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={handleConfirmDelete}
+        loading={deleteClient.isPending}
+      />
     </AppLayout>
   );
 }

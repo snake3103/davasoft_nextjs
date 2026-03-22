@@ -1,12 +1,12 @@
 import "dotenv/config"; // Load .env before anything else
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { Pool } from "pg";
+import { PoolConfig } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Decimal } from "decimal.js";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
+const poolConfig: PoolConfig = { connectionString: process.env.DATABASE_URL };
+const adapter = new PrismaPg(poolConfig);
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
@@ -48,6 +48,22 @@ async function main() {
     update: {},
     create: { name: "Equipos", type: "PRODUCT", organizationId: org.id },
   });
+
+  // 3b. Create Default Taxes (Impuestos para República Dominicana)
+  const taxes = [
+    { name: "ITBIS 18%", shortName: "ITBIS", type: "PERCENTAGE" as const, value: 18, isDefault: true },
+    { name: "ITBIS 16%", shortName: "ITBIS16", type: "PERCENTAGE" as const, value: 16, isDefault: false },
+    { name: "ISC", shortName: "ISC", type: "PERCENTAGE" as const, value: 10, isDefault: false },
+  ];
+
+  for (const tax of taxes) {
+    await prisma.tax.upsert({
+      where: { name_organizationId: { name: tax.name, organizationId: org.id } },
+      update: {},
+      create: { ...tax, organizationId: org.id },
+    });
+  }
+  console.log("✓ Impuestos creados");
 
   const catService = await prisma.category.upsert({
     where: { organizationId_name: { organizationId: org.id, name: "Servicios Cloud" } },
@@ -409,7 +425,7 @@ async function main() {
       clientId: testClients[0].id,
       vehicleId: vehicles[0].id,
       number: "OS-0001",
-      status: "COMPLETED",
+      status: "FINISHED",
       fuelLevel: 75,
       cameWithTow: false,
       description: "Cambio de aceite y filtro",
@@ -459,7 +475,7 @@ async function main() {
       clientId: testClients[2].id,
       vehicleId: vehicles[2].id,
       number: "OS-0003",
-      status: "PENDING",
+      status: "RECEIVED",
       fuelLevel: 25,
       cameWithTow: true,
       description: "Servicio de mantenimiento general",
@@ -489,6 +505,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-await pool.end(); 
   });
 

@@ -1,0 +1,1656 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// NextAuth Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          SystemRole   @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+  memberships   Membership[]
+  activityLogs ActivityLog[]
+  cashDrawerShifts CashDrawerShift[]
+  cashClosures      CashClosure[]
+  createdWorkOrders    WorkOrder[] @relation("WorkOrderCreator")
+  mechanicWorkOrders   WorkOrder[] @relation("WorkOrderMechanic")
+  workOrderAssignments WorkOrderAssignment[] @relation("WorkOrderAssignments")
+  notifications        Notification[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+enum SystemRole {
+  ADMIN
+  CONTADOR
+  VENDEDOR
+  USER
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Multitenancy Models
+model Organization {
+  id                String              @id @default(cuid())
+  name              String
+  slug              String              @unique
+  plan              SubscriptionPlan    @default(FREE)
+  members           Membership[]
+  clients           Client[]
+  products          Product[]
+  categories        Category[]
+  invoices          Invoice[]
+  estimates         Estimate[]
+  expenses          Expense[]
+  incomes           Income[]
+  roles             Role[]
+  activityLogs      ActivityLog[]
+  accounts          AccountingAccount[]
+  journalEntries    JournalEntry[]
+  movements         InventoryMovement[]
+  bankAccounts      BankAccount[]
+  bankReconciliations BankReconciliation[]
+  checks            Check[]
+  posConfig         POSConfig?
+  vehicles          Vehicle[]
+  workOrders        WorkOrder[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  productAttributes ProductAttribute[]
+  billOfMaterials   BillOfMaterials[]
+  productionOrders  ProductionOrder[]
+  cashDrawerShifts  CashDrawerShift[]
+  cashClosures      CashClosure[]
+  warehouses        Warehouse[]
+  costCenters       CostCenter[]
+  
+  // Activos Fijos
+  assetCategories   AssetCategory[]
+  fixedAssets       FixedAsset[]
+  assetDepreciations AssetDepreciation[]
+  
+  // Retenciones
+  retentions        Retention[]
+  retentionCertificates RetentionCertificate[]
+  
+  // Ajustes cambiarios
+  exchangeAdjustments ExchangeRateAdjustment[]
+  
+  // Notificaciones
+  notifications    Notification[]
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+model Role {
+  id             String       @id @default(cuid())
+  name           String
+  description    String?
+  permissions    String[] // E.g., ["sales:view", "sales:create", "contacts:view"]
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    Membership[] // Users who hold this role
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([name, organizationId])
+}
+
+model Membership {
+  id             String @id @default(cuid())
+  userId         String
+  organizationId String
+
+  // The original enum field is replaced by 'systemRole'
+  systemRole SystemRole @default(USER)
+
+  // Optional, as a user might not have a custom role assigned
+  roleId String?
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull) // Relation to the new Role model
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+}
+
+// ============================================
+// Multi-Warehouse / Inventario por Bodegas
+// ============================================
+
+model Warehouse {
+  id             String    @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  address        String?
+  isDefault      Boolean   @default(false)
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  inventoryItems InventoryWarehouse[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model InventoryWarehouse {
+  id          String    @id @default(cuid())
+  productId   String
+  warehouseId String
+  quantity    Int       @default(0)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouseId])
+  @@index([productId])
+  @@index([warehouseId])
+}
+
+// Historial de actividad de usuarios
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+  VIEW
+  EXPORT
+  PRINT
+  OTHER
+}
+
+model ActivityLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type           ActivityType
+  action         String       // e.g., "invoice.create", "product.update"
+  description    String       // e.g., "Creó factura FAC-001"
+  
+  // Metadata
+  module         String?      // e.g., "invoices", "products", "users"
+  entityType     String?      // e.g., "Invoice", "Product"
+  entityId       String?
+  
+  // Cambios (para UPDATE)
+  oldValues      String?      // JSON con valores anteriores
+  newValues      String?      // JSON con valores nuevos
+  
+  ipAddress      String?
+  userAgent      String?
+  
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, userId])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, module])
+}
+
+// Business Models
+model Client {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  idNumber       String? // NIT or CC
+  type           ContactType  @default(CLIENT)
+  invoices       Invoice[]
+  estimates      Estimate[]
+  incomes        Income[]
+  posConfigs     POSConfig[]
+  vehicles       Vehicle[]
+  workOrders     WorkOrder[]
+  fiscalData     ClientFiscalData?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, idNumber])
+  @@index([organizationId, name])
+}
+
+// Datos fiscales extendidos para clientes/proveedores (especialmente para RD/DGII)
+model ClientFiscalData {
+  id              String  @id @default(cuid())
+  clientId        String  @unique
+  client          Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  // Identificación fiscal
+  taxId           String?  // RNC/Cédula (diferente al idNumber general)
+  fiscalRegime    String?  // RÉGIMEN FISCAL (NORMAL, ESPECIAL, etc.)
+  contributorType String?  // TIPO DE CONTRIBUYENTE (JURÍDICO, NATURAL)
+  
+  // Dirección fiscal (puede ser diferente a la dirección general)
+  addressFiscal   String?
+  phoneFiscal      String?
+  emailBilling     String?  // Email para facturación electrónica
+  
+  // Estado DGII (solo para República Dominicana)
+  dgiiStatus      String?  // Estado en DGII (ACTIVO, INACTIVO, SUSPENDIDO)
+  
+  // Agentes de retención/percepción
+  agentRetention  Boolean @default(false) // Agente de retención de ITBIS
+  agentPerception Boolean @default(false) // Agente de percepción
+  
+  // Metadatos
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+enum ContactType {
+  CLIENT
+  PROVIDER
+  BOTH
+}
+
+model Product {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  price          Decimal      @db.Decimal(16, 2)
+  stock          Int          @default(0)
+  sku            String?
+  categoryId     String?
+  category       Category?    @relation(fields: [categoryId], references: [id])
+
+  // Tipos de producto para manufactura
+  productType ProductType @default(FINISHED)
+
+  // Atributos configurables
+  hasAttributes       Boolean @default(false)
+  attributeTemplateId String?
+
+  invoiceItems  InvoiceItem[]
+  estimateItems EstimateItem[]
+  expenseItems  ExpenseItem[]
+  movements     InventoryMovement[]
+
+  // BoM donde este producto es componente
+  bomItems BoMItem[]
+
+  // BoM de este producto (si es manufacturado)
+  billsOfMaterials BillOfMaterials[]
+
+  // Atributos de este producto
+  attributeValues ProductAttributeValue[]
+
+  // Inventario por bodegas
+  warehouseItems InventoryWarehouse[]
+
+  // Alertas de stock
+  alerts ProductAlert[]
+
+  cost                   Decimal                 @default(0) @db.Decimal(16, 2)
+  minStock               Int                     @default(0)
+  costMethod             CostMethod              @default(AVERAGE)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  productionOrders       ProductionOrder[]
+  productionConsumptions ProductionConsumption[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, name])
+}
+
+enum CostMethod {
+  FIFO
+  AVERAGE
+  LIFO
+}
+
+model InventoryMovement {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type           MovementType
+  quantity       Int
+  unitCost       Decimal      @db.Decimal(16, 2)
+  totalCost      Decimal      @db.Decimal(16, 2)
+  reference      String?
+  sourceType     String?
+  sourceId       String?
+  notes          String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, productId])
+  @@index([organizationId, type])
+  @@index([organizationId, createdAt])
+}
+
+enum MovementType {
+  PURCHASE
+  SALE
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RETURN_IN
+  RETURN_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+model Category {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  type           CategoryType @default(PRODUCT)
+  products       Product[]
+  expenses       Expense[]
+  incomes        Income[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, name])
+}
+
+enum CategoryType {
+  PRODUCT
+  EXPENSE
+  SERVICE
+}
+
+// ============================================
+// Alertas de Stock Bajo
+// ============================================
+model ProductAlert {
+  id          String @id @default(cuid())
+  productId   String
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId String?
+  minQuantity Int @default(5)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([isActive])
+}
+
+// ============================================
+// Centro de Costos
+// ============================================
+model CostCenter {
+  id             String    @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  description    String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Documentos relacionados
+  invoices       Invoice[]
+  expenses       Expense[]
+  incomes        Income[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime      @default(now())
+  dueDate        DateTime?
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id])
+  items          InvoiceItem[]
+  payments       Payment[]
+  subtotal       Decimal       @db.Decimal(16, 2)
+  tax            Decimal       @db.Decimal(16, 2)
+  total          Decimal       @db.Decimal(16, 2)
+  status         InvoiceStatus @default(DRAFT)
+  journalEntryId String?       @unique // ID del asiento contable generado
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  workOrders     WorkOrder[]
+  costCenterId   String?
+  costCenter     CostCenter?   @relation(fields: [costCenterId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, date])
+  @@index([organizationId, costCenterId])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  description String?
+  quantity    Int
+  price       Decimal  @db.Decimal(16, 2)
+  tax         Decimal  @default(0) @db.Decimal(16, 2)
+  total       Decimal  @db.Decimal(16, 2)
+
+  @@index([invoiceId])
+}
+
+model Estimate {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime       @default(now())
+  dueDate        DateTime?
+  clientId       String
+  client         Client         @relation(fields: [clientId], references: [id])
+  items          EstimateItem[]
+  subtotal       Decimal        @db.Decimal(16, 2)
+  tax            Decimal        @db.Decimal(16, 2)
+  total          Decimal        @db.Decimal(16, 2)
+  status         EstimateStatus @default(DRAFT)
+  notes          String?        @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, date])
+}
+
+model EstimateItem {
+  id          String   @id @default(cuid())
+  estimateId  String
+  estimate    Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  description String?
+  quantity    Int
+  price       Decimal  @db.Decimal(16, 2)
+  total       Decimal  @db.Decimal(16, 2)
+
+  @@index([estimateId])
+}
+
+model Expense {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime      @default(now())
+  type           ExpenseType   @default(EXPENSE) // EXPENSE = Gasto operativo, PURCHASE = Factura de compra
+  provider       String
+  description    String?
+  categoryId     String
+  category       Category      @relation(fields: [categoryId], references: [id])
+  items          ExpenseItem[]
+  payments       Payment[]
+  total          Decimal       @db.Decimal(16, 2)
+  status         ExpenseStatus @default(PENDING)
+  journalEntryId String?       @unique // ID del asiento contable generado
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+  costCenterId   String?
+  costCenter     CostCenter?   @relation(fields: [costCenterId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, date])
+  @@index([organizationId, type])
+  @@index([organizationId, costCenterId])
+}
+
+model ExpenseItem {
+  id          String   @id @default(cuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id])
+  description String?
+  quantity    Int
+  price       Decimal  @db.Decimal(16, 2)
+  total       Decimal  @db.Decimal(16, 2)
+
+  @@index([expenseId])
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  date      DateTime      @default(now())
+  amount    Decimal       @db.Decimal(16, 2)
+  method    PaymentMethod @default(CASH)
+  reference String?
+  invoiceId String?
+  invoice   Invoice?      @relation(fields: [invoiceId], references: [id])
+  expenseId String?
+  expense   Expense?      @relation(fields: [expenseId], references: [id])
+  shiftId   String?
+  shift     CashDrawerShift? @relation(fields: [shiftId], references: [id])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([shiftId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  CANCELLED
+  PARTIAL
+}
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum ExpenseStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum ExpenseType {
+  EXPENSE // Gasto operativo
+  PURCHASE // Factura de compra
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CREDIT_CARD
+  OTHER
+}
+
+// ============================================
+// Accounting Models (Contabilidad)
+// ============================================
+
+enum AccountType {
+  ASSET // Activo (1xxx)
+  LIABILITY // Pasivo (2xxx)
+  EQUITY // Patrimonio (3xxx)
+  REVENUE // Ingreso (4xxx)
+  EXPENSE // Gasto (5xxx)
+}
+
+model AccountingAccount {
+  id             String              @id @default(cuid())
+  organizationId String
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String // Ej: "1105", "1305", "2205"
+  name           String // Ej: "Caja", "Clientes", "Proveedores"
+  type           AccountType
+  parentId       String?
+  parent         AccountingAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children       AccountingAccount[] @relation("AccountHierarchy")
+  journalLines   JournalLine[]
+  isActive       Boolean             @default(true)
+  description    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@unique([organizationId, code])
+  @@index([organizationId, type])
+  @@index([organizationId, parentId])
+}
+
+model JournalEntry {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  date           DateTime      @default(now())
+  description    String
+  lines          JournalLine[]
+  sourceType     String? // "INVOICE", "EXPENSE", "PAYMENT", "ESTIMATE"
+  sourceId       String? // ID de la factura/gasto original (referencia, no relación)
+  reference      String? // Número de referencia externo
+  status         JournalStatus @default(POSTED)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  invoice        Invoice?
+  expense        Expense?
+
+  @@index([organizationId, date])
+  @@index([organizationId, sourceType, sourceId])
+  @@index([organizationId, status])
+}
+
+enum JournalStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+model JournalLine {
+  id          String            @id @default(cuid())
+  entryId     String
+  entry       JournalEntry      @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     AccountingAccount @relation(fields: [accountId], references: [id])
+  debit       Decimal           @default(0) @db.Decimal(16, 2)
+  credit      Decimal           @default(0) @db.Decimal(16, 2)
+  description String?
+  createdAt   DateTime          @default(now())
+
+  @@index([entryId])
+  @@index([accountId])
+}
+
+model BankAccount {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  bankName       String
+  accountNumber  String
+  accountType    BankAccountType @default(CHECKING)
+  currency       String          @default("DOP")
+  initialBalance Decimal         @default(0) @db.Decimal(16, 2)
+  currentBalance Decimal         @default(0) @db.Decimal(16, 2)
+  status         BankStatus      @default(ACTIVE)
+  description    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  incomes        Income[]
+  reconciliations BankReconciliation[]
+  checks         Check[]
+
+  @@unique([organizationId, accountNumber])
+  @@index([organizationId, status])
+}
+
+enum BankAccountType {
+  CHECKING
+  SAVINGS
+  CASH
+  CREDIT
+}
+
+enum BankStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+// ============================================
+// Bank Reconciliation Models
+// ============================================
+
+enum ReconciliationStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model BankReconciliation {
+  id             String    @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccountId  String
+  bankAccount    BankAccount @relation(fields: [bankAccountId], references: [id])
+  date           DateTime
+  initialBalance Decimal   @db.Decimal(16,2)
+  finalBalance   Decimal   @db.Decimal(16,2)
+  statementTotal Decimal   @db.Decimal(16,2)
+  systemTotal    Decimal   @db.Decimal(16,2)
+  difference     Decimal   @db.Decimal(16,2)
+  status         ReconciliationStatus @default(DRAFT)
+  notes          String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  items          ReconciliationItem[]
+  
+  @@index([organizationId])
+  @@index([bankAccountId])
+  @@index([organizationId, date])
+}
+
+model ReconciliationItem {
+  id                String    @id @default(cuid())
+  reconciliationId  String
+  reconciliation     BankReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  transactionId     String?   // ID de la transacción en sistema (Income o Expense)
+  transactionType   TransactionType? // INCOME, EXPENSE, TRANSFER
+  description       String
+  reference         String?
+  statementDate     DateTime
+  statementAmount   Decimal   @db.Decimal(16,2)
+  systemAmount      Decimal?  @db.Decimal(16,2)
+  matched           Boolean   @default(false)
+  matchDate         DateTime?
+  createdAt         DateTime  @default(now())
+  
+  @@index([reconciliationId])
+  @@index([transactionId])
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+// ============================================
+// Bank Statement Import Model
+// ============================================
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model BankStatementImport {
+  id             String   @id @default(cuid())
+  organizationId String
+  bankAccountId  String
+  filename       String
+  fileSize       Int?
+  importDate     DateTime @default(now())
+  transactions   Int      @default(0)
+  status         ImportStatus @default(PENDING)
+  errorMessage   String?  @db.Text
+  // Transacciones importadas en formato JSON para revisión antes de confirmar
+  previewData    String?  @db.Text // JSON array con transacciones detectadas
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([bankAccountId])
+  @@index([status])
+}
+
+model Income {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  number         String
+  date           DateTime     @default(now())
+  description    String?
+  clientId       String?
+  client         Client?      @relation(fields: [clientId], references: [id])
+  categoryId     String?
+  category       Category?    @relation(fields: [categoryId], references: [id])
+  amount         Decimal      @db.Decimal(16, 2)
+  paymentMethod  String?
+  reference      String?
+  status         IncomeStatus @default(RECEIVED)
+  bankAccountId  String?
+  bankAccount    BankAccount? @relation(fields: [bankAccountId], references: [id])
+  costCenterId   String?
+  costCenter     CostCenter?  @relation(fields: [costCenterId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, number])
+  @@index([organizationId, date])
+  @@index([organizationId, status])
+  @@index([organizationId, costCenterId])
+}
+
+// ============================================
+// Check Management Model
+// ============================================
+
+enum CheckType {
+  ISSUED   // Cheque我们自己开出 (emitido)
+  RECEIVED // Cheque收到的 (recibido)
+}
+
+enum CheckStatus {
+  PENDING
+  DEPOSITED  // Para cheques recibidos: depositado en banco
+  CLEARED    // Para cheques emitidos: cobrado por el beneficiario
+  RETURNED   // Devuelto (sin fondos, etc.)
+  CANCELLED
+}
+
+model Check {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccountId  String
+  bankAccount    BankAccount  @relation(fields: [bankAccountId], references: [id])
+  number         String
+  type           CheckType
+  date           DateTime     @default(now())
+  dueDate        DateTime?
+  amount         Decimal      @db.Decimal(16, 2)
+  beneficiary    String       // A quién se emite o de quién se recibe
+  status         CheckStatus  @default(PENDING)
+  notes          String?      @db.Text
+  // Para cheques emitidos: relación con Expense (si se usó para pagar)
+  expenseId      String?
+  // Para cheques recibidos: relación con Income (si se depositó)
+  incomeId       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  @@unique([bankAccountId, number, type])
+  @@index([organizationId])
+  @@index([bankAccountId])
+  @@index([organizationId, status])
+  @@index([organizationId, type])
+  @@index([dueDate])
+}
+
+enum IncomeStatus {
+  PENDING
+  RECEIVED
+  CANCELLED
+}
+
+// ============================================
+// POS Configuration Models
+// ============================================
+
+enum POSPrintFormat {
+  TICKET // 80mm - Tirilla
+  HALF_LETTER // Media carta
+  LETTER // Carta completa
+}
+
+enum POSType {
+  STANDARD // Caja normal - facturar y cobrar en el mismo lugar
+  SPLIT // Facturar en un lado, cobrar en otro
+}
+
+model POSConfig {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Tipo de POS
+  posType POSType @default(STANDARD)
+
+  // Configuración de impresión
+  printFormat POSPrintFormat @default(TICKET)
+  printCopies Int            @default(1)
+  autoPrint   Boolean        @default(false)
+  showLogo    Boolean        @default(true)
+
+  // Configuración de tienda
+  defaultClientId String?
+  defaultClient   Client? @relation(fields: [defaultClientId], references: [id])
+
+  // Configuración de impuestos
+  defaultTaxRate Decimal @default(18) @db.Decimal(5, 2)
+  taxIncluded    Boolean @default(true)
+
+  // Estado
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// SISTEMA DE MANUFACTURA - PRODUCTOS Y BoM
+// ==========================================
+
+// Tipo de producto para manufactura
+enum ProductType {
+  FINISHED // Producto terminado
+  SEMI_FINISHED // Sub-ensamble
+  RAW // Materia prima
+  CONFIGURABLE // Producto configurable con atributos
+}
+
+// Atributos de producto (ancho, alto, material, etc.)
+model ProductAttribute {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name         String // "Ancho", "Alto", "Material"
+  code         String // "width", "height", "material"
+  type         String // "number", "text", "select", "boolean"
+  unit         String? // "m", "cm", "mm", "kg"
+  defaultValue String?
+  options      String? // JSON array para tipo "select"
+  isRequired   Boolean @default(false)
+  isGlobal     Boolean @default(true) // Si es global o solo para este producto
+
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  productAttributeValues ProductAttributeValue[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+// Valores de atributos por producto
+model ProductAttributeValue {
+  id          String           @id @default(cuid())
+  productId   String
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeId String
+  attribute   ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  value String // Valor del atributo
+
+  @@unique([productId, attributeId])
+  @@index([productId])
+}
+
+// Bill of Materials (Lista de materiales)
+model BillOfMaterials {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  productId String // Producto que se manufactura
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  version   String  @default("1.0") // "1.0", "2.0"
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
+
+  // Para BoM por variantes (dejar null para BoM base)
+  variantMatch String? // JSON con condiciones de variante
+
+  totalCost Decimal @default(0) @db.Decimal(16, 2)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  boMItems  BoMItem[]
+
+  @@unique([organizationId, productId, version])
+  @@index([organizationId, productId])
+  @@index([organizationId])
+}
+
+// Items de la BoM (materiales componentes)
+model BoMItem {
+  id    String          @id @default(cuid())
+  bomId String
+  bom   BillOfMaterials @relation(fields: [bomId], references: [id], onDelete: Cascade)
+
+  componentId String // Producto componente
+  component   Product @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  quantity        Decimal @default(1) @db.Decimal(16, 4) // Cantidad base
+  quantityFormula String? // Fórmula: "{width} * {height} / 10000"
+
+  // Configuración avanzada
+  isOptional   Boolean @default(false)
+  scrapPercent Decimal @default(0) @db.Decimal(5, 2) // % desperdicio
+
+  // Para BoM por variantes
+  applyToVariants String? // JSON array de variant IDs donde aplica
+
+  // Secuencia para orden
+  sequence Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bomId])
+  @@index([componentId])
+}
+
+// Órdenes de producción
+enum ProductionOrderStatus {
+  DRAFT
+  CONFIRMED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model ProductionOrder {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  number    String // "OP-0001"
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  quantity Decimal @db.Decimal(16, 4) // Cantidad a producir
+
+  // Atributos seleccionados (para productos configurables)
+  attributes String? // JSON: {"width": 1.2, "height": 1.5}
+
+  status ProductionOrderStatus @default(DRAFT)
+
+  // Costos
+  totalCost Decimal @default(0) @db.Decimal(16, 2)
+
+  // Fechas
+  plannedDate DateTime?
+  startDate   DateTime?
+  endDate     DateTime?
+
+  notes String?
+
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  productionConsumptions ProductionConsumption[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId, productId])
+  @@index([organizationId, status])
+}
+
+// Items consumidos en orden de producción
+model ProductionConsumption {
+  id                String          @id @default(cuid())
+  productionOrderId String
+  productionOrder   ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+
+  componentId String
+  component   Product @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  quantityRequired Decimal @db.Decimal(16, 4) // Cantidad necesaria
+  quantityConsumed Decimal @default(0) @db.Decimal(16, 4) // Consumida
+
+  createdAt DateTime @default(now())
+
+  @@index([productionOrderId])
+}
+
+// ============================================
+// Cash Drawer / Shift Management
+// ============================================
+
+model CashDrawerShift {
+  id             String            @id @default(cuid())
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  payments       Payment[]
+  
+  // Shift info
+  status         ShiftStatus       @default(OPEN)
+  openingDate    DateTime          @default(now())
+  closingDate    DateTime?
+  
+  // Money at start and end
+  openingAmount  Decimal           @default(0) @db.Decimal(16, 2) // Dinero inicial
+  expectedAmount Decimal?          @db.Decimal(16, 2) // Dinero esperado al cerrar
+  actualAmount   Decimal?          @db.Decimal(16, 2) // Dinero real contado
+  
+  // Notes
+  openingNotes   String?           @db.Text // Notas al abrir
+  closingNotes   String?           @db.Text // Notas al cerrar (incluye arqueo)
+  
+  // Sales summary (calculated on close)
+  totalCashSales      Decimal @default(0) @db.Decimal(16, 2) // Ventas en efectivo
+  totalCardSales      Decimal @default(0) @db.Decimal(16, 2) // Ventas con tarjeta
+  totalTransferSales  Decimal @default(0) @db.Decimal(16, 2) // Ventas por transferencia
+  totalSales          Decimal @default(0) @db.Decimal(16, 2) // Total ventas
+  totalPayments       Decimal @default(0) @db.Decimal(16, 2) // Total recibido
+  totalChangeGiven    Decimal @default(0) @db.Decimal(16, 2) // Cambio dado
+  
+  // Transactions count
+  transactionCount Int          @default(0) // Número de transacciones
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([organizationId, status])
+  @@index([organizationId, userId])
+  @@index([organizationId, openingDate])
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+  AUDITED // Auditoría completada
+}
+
+// ============================================
+// ACTIVOS FIJOS - Depreciación de activos
+// ============================================
+
+enum DepreciationMethod {
+  STRAIGHT_LINE        // Línea recta
+  SUM_OF_YEARS_DIGITS  // Suma de dígitos
+  DECLINING_BALANCE    // Saldo decreciente
+}
+
+enum AssetStatus {
+  ACTIVE
+  IN_REPAIR
+  IN_STORAGE
+  DISPOSED
+  SOLD
+}
+
+model AssetCategory {
+  id                    String      @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                  String
+  code                  String
+  depreciationMethod    DepreciationMethod @default(STRAIGHT_LINE)
+  usefulLifeYears       Int         @default(5)
+  depreciationRate      Decimal     @db.Decimal(5,2) @default(20)
+  accountAssetId        String?     // Cuenta de activo
+  accountDepreciationId String?     // Cuenta de depreciación acumulada
+  accountExpenseId      String?     // Cuenta de gasto por depreciación
+  isActive              Boolean     @default(true)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  
+  fixedAssets           FixedAsset[]
+  
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model FixedAsset {
+  id                    String      @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  categoryId            String
+  category              AssetCategory @relation(fields: [categoryId], references: [id])
+  
+  code                  String
+  name                  String
+  description           String?
+  
+  // Ubicación y responsable
+  location              String?
+  responsibleId         String?
+  
+  // Datos de adquisición
+  acquisitionDate       DateTime
+  acquisitionCost       Decimal     @db.Decimal(16,2)
+  salvageValue          Decimal     @db.Decimal(16,2) @default(0)  // Valor residual
+  usefulLifeYears       Int?        // Si es null, usa el de la categoría
+  
+  // Depreciación
+  depreciationMethod    DepreciationMethod @default(STRAIGHT_LINE)
+  depreciationStartDate DateTime?
+  status                AssetStatus @default(ACTIVE)
+  
+  // Documentos
+  invoiceId             String?
+  notes                 String?
+  
+  // Campos calculados
+  currentValue          Decimal     @db.Decimal(16,2) @default(0)
+  accumulatedDepreciation Decimal   @db.Decimal(16,2) @default(0)
+  
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  
+  depreciations         AssetDepreciation[]
+  
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([categoryId])
+}
+
+model AssetDepreciation {
+  id              String    @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assetId         String
+  asset           FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  date            DateTime
+  period          String    // "2026-01", "2026-02", etc.
+  amount          Decimal   @db.Decimal(16,2)
+  accumulated     Decimal   @db.Decimal(16,2)
+  
+  journalEntryId  String?   // Asiento contable generado
+  notes           String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@unique([assetId, period])
+  @@index([organizationId])
+  @@index([assetId])
+}
+
+// ============================================
+// SISTEMA DE RETENCIONES - ISR, IVA, etc.
+// ============================================
+
+enum RetentionType {
+  ISR_RETENTION        // Retención en fuente ISR
+  IVA_RETENTION        // Retención de IVA
+  ISC_RETENTION        // Impuesto específico de consumo
+  FLETE_RETENTION      // Retención en fletes
+  ICA_RETENTION        // ICA (industria y comercio)
+  RENTA_RETENTION       // Retención de renta
+  NOTARY_RETENTION     // Retención a notarios
+}
+
+enum ApplyTo {
+  SALES     // Facturas de venta
+  PURCHASES // Facturas de compra
+  BOTH      // Ambas
+}
+
+model Retention {
+  id                    String       @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                  String
+  type                  RetentionType
+  percentage            Decimal      @db.Decimal(5,2)
+  description           String?
+  
+  // Cuentas contables
+  accountPayableId      String?      // Cuenta por pagar retención
+  accountReceivableId   String?      // Cuenta por cobrar retención
+  
+  appliesTo             ApplyTo      // Factura de venta, compra, o ambas
+  isActive              Boolean      @default(true)
+  
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  
+  certificates          RetentionCertificate[]
+  
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+// Certificados de retención generados
+model RetentionCertificate {
+  id              String    @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  retentionId     String
+  retention       Retention @relation(fields: [retentionId], references: [id])
+  
+  certificateNumber String  // Ej: "RET-2026-0001"
+  date             DateTime
+  
+  // Agente de retención
+  agentName       String
+  agentTaxId      String    // RNC del agente
+  agentAddress    String
+  
+  // Beneficiario
+  beneficiaryName String
+  beneficiaryTaxId String   // RNC/Cédula del beneficiario
+  beneficiaryAddress String
+  
+  // Montos
+  totalAmount     Decimal   @db.Decimal(16,2)
+  retainedAmount  Decimal   @db.Decimal(16,2)
+  
+  // Concepto
+  concept         String
+  period          String    // "2026-03"
+  
+  // Asiento contable
+  journalEntryId  String?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@unique([organizationId, certificateNumber])
+  @@index([organizationId])
+  @@index([retentionId])
+  @@index([date])
+}
+
+// ============================================
+// AJUSTES POR DIFERENCIA EN CAMBIO
+// ============================================
+
+enum AdjustmentStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+}
+
+model ExchangeRateAdjustment {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  date            DateTime
+  period          String   // "2026-01"
+  
+  totalDebit      Decimal  @db.Decimal(16,2)
+  totalCredit     Decimal  @db.Decimal(16,2)
+  difference      Decimal  @db.Decimal(16,2)
+  
+  journalEntryId  String?  // Asiento contable generado
+  status          AdjustmentStatus @default(DRAFT)
+  
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([period])
+}
+
+// ============================================
+// SISTEMA DE TALLER - Órdenes de Servicio
+// ============================================
+
+// Vehículos de clientes
+model Vehicle {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Cliente propietario
+  clientId       String
+  client         Client       @relation(fields: [clientId], references: [id])
+
+  // Datos del vehículo
+  brand          String       // Marca: Toyota, Honda, etc.
+  model          String       // Modelo: Corolla, Civic, etc.
+  year           Int?         // Año del vehículo
+  color          String?
+  plates         String?      // Placas
+  vin            String?      // Número de serie (VIN)
+  mileage        Int?         @default(0) // Kilometraje
+  cameWithTow    Boolean      @default(false) // Vino en grúa
+  
+  // Historial de ingresos
+  workOrders     WorkOrder[]
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, clientId])
+  @@index([organizationId, plates])
+}
+
+// Estado de la orden de servicio (Kanban)
+enum WorkOrderStatus {
+  RECEIVED       // Recibido
+  DIAGNOSIS      // En diagnóstico
+  APPROVED       // Aprobado por cliente
+  IN_PROGRESS    // En reparación
+  FINISHED       // Terminado
+  DELIVERED      // Entregado
+  CANCELLED      // Cancelada
+}
+
+// Estado de asignación de trabajo
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// Órden de servicio / Recepción de vehículo
+model WorkOrder {
+  id             String          @id @default(cuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Vehículo
+  vehicleId      String
+  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  // Cliente (duplicado para acceso rápido)
+  clientId       String
+  client         Client          @relation(fields: [clientId], references: [id])
+
+  // Número de orden
+  number         String          // Ej: "OS-0001"
+  
+  // Fechas
+  entryDate      DateTime        @default(now()) // Fecha de ingreso
+  exitDate       DateTime?       // Fecha de salida/entrega
+  
+  // Estado (Kanban)
+  status         WorkOrderStatus @default(RECEIVED)
+
+  // Mecánico asignado
+  mechanicId     String?
+  mechanic       User?           @relation("WorkOrderMechanic", fields: [mechanicId], references: [id])
+  
+  // Fechas de estados
+  assignedAt     DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  deliveredAt    DateTime?
+
+  // Datos del ingreso
+  fuelLevel      Int             @default(50) // Nivel de gasolina (0-100%)
+  cameWithTow    Boolean         @default(false)
+  
+  // Descripción del trabajo
+  description    String?         @db.Text // Descripción del trabajo a realizar
+  
+  // Items/trabajos a realizar (JSON array para trabajos)
+  // Estructura: [{"description": "Cambio de filtro", "cost": 500, "completed": false}]
+  workItems      String?         @db.Text 
+
+  // Inventario del vehículo al ingreso (checkboxes)
+  // Estructura: {"speedometer": true, "radio": true, "spareTire": false, ...}
+  inventory      String?         @db.Text
+  
+  // Daños preexistentes (checkboxes del diagrama)
+  // Estructura: {"bumperFront": false, "hood": true, "doorLeft": false, ...}
+  preExistingDamage String?     @db.Text
+
+  // Notas adicionales
+  notes          String?         @db.Text
+
+  // Relación con factura (si se facturó)
+  invoiceId      String?
+  invoice        Invoice?       @relation(fields: [invoiceId], references: [id])
+
+  // Usuario que creó la orden
+  createdById    String
+  createdBy      User            @relation("WorkOrderCreator", fields: [createdById], references: [id])
+
+  // Asignaciones de trabajo
+  assignments    WorkOrderAssignment[]
+
+  // Auditoría
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([organizationId, number])
+  @@index([organizationId, status])
+  @@index([organizationId, vehicleId])
+  @@index([organizationId, clientId])
+  @@index([mechanicId])
+}
+
+// Asignación de trabajo a mecánico
+model WorkOrderAssignment {
+  id              String   @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User     @relation("WorkOrderAssignments", fields: [userId], references: [id])
+  
+  task            String   // Descripción del trabajo
+  estimatedHours  Decimal? @db.Decimal(5,2)
+  actualHours     Decimal? @db.Decimal(5,2)
+  status          AssignmentStatus @default(PENDING)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([workOrderId])
+  @@index([userId])
+}
+
+// ============================================
+// CUADRE DE CAJA - POS
+// ============================================
+
+enum ClosureStatus {
+  OPEN
+  CLOSED
+}
+
+model CashClosure {
+  id                String   @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  
+  shiftId           String?
+  
+  // Montos de apertura y cierre
+  openingAmount     Decimal  @db.Decimal(16,2)
+  closingAmount     Decimal  @db.Decimal(16,2) @default(0)
+  
+  // Totales por método de pago
+  totalCash         Decimal  @db.Decimal(16,2) @default(0)
+  totalCard         Decimal  @db.Decimal(16,2) @default(0)
+  totalTransfer     Decimal  @db.Decimal(16,2) @default(0)
+  totalOther        Decimal  @db.Decimal(16,2) @default(0)
+  
+  // Conteo físico vs sistema
+  countedCash       Decimal? @db.Decimal(16,2)
+  difference        Decimal  @db.Decimal(16,2) @default(0)
+  
+  // Totales
+  totalSales        Int      @default(0)
+  totalRefunds      Int      @default(0)
+  totalAmount       Decimal  @db.Decimal(16,2) @default(0)
+  
+  notes             String?  @db.Text
+  status            ClosureStatus @default(OPEN)
+  
+  openedAt          DateTime @default(now())
+  closedAt          DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([organizationId])
+  @@index([userId])
+  @@index([status])
+}
+
+// Notifications
+model Notification {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Usuario que recibe la notificación
+  userId         String?
+  user           User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Tipo de notificación
+  type           NotificationType
+  
+  // Contenido
+  title          String
+  message        String           @db.Text
+  link           String?
+  
+  // Referencia a la entidad relacionada
+  entityType     String?          // workOrder, invoice, client, etc.
+  entityId       String?
+  
+  // Estado
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  
+  // Prioridad
+  priority       NotificationPriority @default(NORMAL)
+  
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  @@index([organizationId])
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt(sort: Desc)])
+}
+
+enum NotificationType {
+  WORK_ORDER_CREATED
+  WORK_ORDER_STATUS_CHANGED
+  WORK_ORDER_ASSIGNED
+  INVOICE_CREATED
+  INVOICE_PAID
+  PAYMENT_RECEIVED
+  LOW_STOCK_ALERT
+  DUE_DATE_REMINDER
+  SYSTEM_MESSAGE
+  USER_ASSIGNED
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}

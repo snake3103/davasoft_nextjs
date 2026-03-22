@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -20,11 +23,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers>
-          {children}
-        </Providers>
+        <ThemeProvider>
+          <ToastProvider>
+            <Providers>
+              {children}
+              <GlobalSearch />
+            </Providers>
+          </ToastProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

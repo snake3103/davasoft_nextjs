@@ -5,51 +5,58 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, Download, MoreHorizontal, CheckCircle2, Clock, X, Edit, Trash, Printer, FileText } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { useInvoices } from "@/hooks/useDatabase";
+import { useInvoices, useDeleteInvoice } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useRouter } from "next/navigation";
 import { ReprintModal } from "@/components/modals/ReprintModal";
 
 export default function VentasPage() {
   const router = useRouter();
-  const { data: invoices, isLoading } = useInvoices();
+  const { data: invoices, isLoading, refetch } = useInvoices();
+  const deleteInvoice = useDeleteInvoice();
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("Todas");
   const [reprintInvoice, setReprintInvoice] = useState<any>(null);
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; invoice: any }>({ open: false, invoice: null });
 
   const filteredInvoices = useMemo(() => {
     if (!invoices) return [];
     return invoices.filter((invoice: any) => {
       const matchesSearch =
-        invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice.client?.name.toLowerCase().includes(searchQuery.toLowerCase());
+        invoice.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        invoice.client?.name?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === "Todas" ||
         (statusFilter === "Pagada" && invoice.status === "PAID") ||
         (statusFilter === "Abierta" && ["DRAFT", "SENT"].includes(invoice.status)) ||
-        (statusFilter === "Vencida" && invoice.status === "OVERDUE") || // Status to be handled
+        (statusFilter === "Vencida" && invoice.status === "OVERDUE") ||
         (statusFilter === "Parcial" && invoice.status === "PARTIAL");
 
-      const matchesClientType = !invoice.client ||
-        invoice.client.type === "CLIENT" ||
-        invoice.client.type === "BOTH";
-
-      return matchesSearch && matchesStatus && matchesClientType;
+      return matchesSearch && matchesStatus;
     });
   }, [invoices, searchQuery, statusFilter]);
-
-  /* 
-  const handleSaveInvoice = (formData: any) => {
-    // Logic will be moved to useCreateInvoice mutation
-  };
-  */
 
   const handleEdit = (invoice: any) => {
     router.push(`/ventas/${invoice.id}/editar`);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar esta factura?")) {
-      // Logic for deletion
+  const handleDeleteClick = (invoice: any) => {
+    setDeleteModal({ open: true, invoice });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.invoice) return;
+    try {
+      await deleteInvoice.mutateAsync(deleteModal.invoice.id);
+      showToast("success", "Factura eliminada exitosamente");
+      setDeleteModal({ open: false, invoice: null });
+      refetch();
+    } catch (error: any) {
+      showToast("error", error.message || "Error al eliminar");
     }
   };
 
@@ -167,7 +174,7 @@ export default function VentasPage() {
                       <Edit size={16} />
                     </button>
                     <button
-                      onClick={() => handleDelete(invoice.id)}
+                      onClick={() => handleDeleteClick(invoice)}
                       className="p-1.5 hover:bg-rose-50 hover:text-rose-600 rounded-lg text-slate-400 transition-colors"
                       title="Eliminar"
                     >
@@ -200,6 +207,16 @@ export default function VentasPage() {
         onClose={() => setReprintInvoice(null)}
         invoice={reprintInvoice}
         type="invoice"
+      />
+
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+        title="Eliminar Factura"
+        description={`¿Estás seguro de que deseas eliminar la factura ${deleteModal.invoice?.number}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={handleConfirmDelete}
+        loading={deleteInvoice.isPending}
       />
 
     </AppLayout>

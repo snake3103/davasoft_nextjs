@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useCreateIncome, useClients, useCategories, useBankAccounts } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
 import {
     Save,
     X,
@@ -19,6 +20,8 @@ import {
     Loader2
 } from "lucide-react";
 import Link from "next/link";
+import { Select } from "@/components/ui/Select";
+import { cn } from "@/lib/utils";
 
 export default function NuevoIngreso() {
     const router = useRouter();
@@ -26,6 +29,7 @@ export default function NuevoIngreso() {
     const { data: clients = [] } = useClients();
     const { data: categories = [] } = useCategories();
     const { data: bankAccounts = [] } = useBankAccounts();
+    const { showToast } = useToast();
 
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -72,9 +76,10 @@ export default function NuevoIngreso() {
                 status: formData.status,
                 bankAccountId: formData.bankAccountId || null,
             });
+            showToast("success", "Ingreso registrado exitosamente");
             router.push("/ingresos");
         } catch (error: any) {
-            alert("Error al crear ingreso: " + (error.message || "Error desconocido"));
+            showToast("error", "Error al crear ingreso: " + (error.message || "Error desconocido"));
         } finally {
             setIsLoading(false);
         }
@@ -152,37 +157,35 @@ export default function NuevoIngreso() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-700">Cliente (Recibido de)</label>
-                                <div className="relative">
-                                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <select
-                                        value={formData.clientId}
-                                        onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                                    >
-                                        <option value="">Selecciona un cliente...</option>
-                                        {clients.map((client: any) => (
-                                            <option key={client.id} value={client.id}>{client.name}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                                </div>
+                                <Select
+                                    value={formData.clientId}
+                                    onChange={(val) => setFormData({ ...formData, clientId: val })}
+                                    options={[
+                                        { value: "", label: "Selecciona un cliente...", description: "Sin cliente específico" },
+                                        ...clients.map((client: any) => ({ 
+                                            value: client.id, 
+                                            label: client.name,
+                                            description: client.email || undefined
+                                        })),
+                                    ]}
+                                    placeholder="Buscar cliente..."
+                                />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-700">Categoría</label>
-                                <div className="relative">
-                                    <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <select
-                                        value={formData.categoryId}
-                                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                                        className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
-                                    >
-                                        <option value="">Selecciona una categoría...</option>
-                                        {filteredCategories.map((cat: any) => (
-                                            <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                                </div>
+                                <Select
+                                    value={formData.categoryId}
+                                    onChange={(val) => setFormData({ ...formData, categoryId: val })}
+                                    options={[
+                                        { value: "", label: "Selecciona una categoría...", description: "Sin categoría" },
+                                        ...filteredCategories.map((cat: any) => ({ 
+                                            value: cat.id, 
+                                            label: cat.name,
+                                            description: cat.description || undefined
+                                        })),
+                                    ]}
+                                    placeholder="Buscar categoría..."
+                                />
                             </div>
                         </div>
 
@@ -249,25 +252,20 @@ export default function NuevoIngreso() {
                         {formData.paymentMethod === "BANK_TRANSFER" && (
                             <div className="space-y-2">
                                 <label className="text-sm font-bold text-slate-700">Cuenta Bancaria</label>
-                                <div className="relative">
-                                    <Wallet className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                    <select
-                                        value={formData.bankAccountId}
-                                        onChange={(e) => setFormData({ ...formData, bankAccountId: e.target.value })}
-                                        className={cn(
-                                            "w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-11 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all",
-                                            errors.bankAccountId && "border-rose-500"
-                                        )}
-                                    >
-                                        <option value="">Selecciona una cuenta...</option>
-                                        {bankAccounts.map((account: any) => (
-                                            <option key={account.id} value={account.id}>
-                                                {account.name} - {account.accountNumber}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                                </div>
+                                <Select
+                                    value={formData.bankAccountId}
+                                    onChange={(val) => setFormData({ ...formData, bankAccountId: val })}
+                                    options={[
+                                        { value: "", label: "Selecciona una cuenta...", description: "Sin cuenta" },
+                                        ...bankAccounts.map((account: any) => ({ 
+                                            value: account.id, 
+                                            label: `${account.name} - ${account.accountNumber}`,
+                                            description: account.bankName || undefined
+                                        })),
+                                    ]}
+                                    placeholder="Buscar cuenta..."
+                                    error={!!errors.bankAccountId}
+                                />
                                 {errors.bankAccountId && <p className="text-xs text-rose-500 mt-1">{errors.bankAccountId}</p>}
                             </div>
                         )}
@@ -336,8 +334,4 @@ export default function NuevoIngreso() {
             </form>
         </AppLayout>
     );
-}
-
-function cn(...classes: (string | undefined | null | false)[]) {
-    return classes.filter(Boolean).join(" ");
 }

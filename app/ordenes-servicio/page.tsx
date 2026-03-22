@@ -1,36 +1,72 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Car, Wrench, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWorkOrders, useUpdateWorkOrderStatus, useDeleteWorkOrder } from "@/hooks/useDatabase";
+import { useWorkOrderSocket } from "@/hooks/useWorkOrderSocket";
+import { useSession } from "next-auth/react";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800",
-  IN_PROGRESS: "bg-blue-100 text-blue-800",
-  COMPLETED: "bg-green-100 text-green-800",
-  DELIVERED: "bg-purple-100 text-purple-800",
+  RECEIVED: "bg-slate-100 text-slate-800",
+  DIAGNOSIS: "bg-amber-100 text-amber-800",
+  APPROVED: "bg-blue-100 text-blue-800",
+  IN_PROGRESS: "bg-orange-100 text-orange-800",
+  FINISHED: "bg-emerald-100 text-emerald-800",
+  DELIVERED: "bg-green-100 text-green-800",
   CANCELLED: "bg-red-100 text-red-800",
 };
 
 const statusLabels: Record<string, string> = {
-  PENDING: "Pendiente",
+  RECEIVED: "Recibido",
+  DIAGNOSIS: "Diagnóstico",
+  APPROVED: "Aprobado",
   IN_PROGRESS: "En Proceso",
-  COMPLETED: "Completada",
-  DELIVERED: "Entregada",
+  FINISHED: "Terminado",
+  DELIVERED: "Entregado",
   CANCELLED: "Cancelada",
 };
 
 export default function WorkOrdersPage() {
-  const { data: workOrders = [], isLoading } = useWorkOrders();
+  const router = useRouter();
+  const { data: session } = useSession();
+  const organizationId = session?.user?.organizationId || "";
+  const { data: workOrders = [], isLoading, refetch } = useWorkOrders();
   const updateStatus = useUpdateWorkOrderStatus();
   const deleteWorkOrder = useDeleteWorkOrder();
+  const { showToast } = useToast();
+  
+  // Socket para notificar cambios
+  const { notifyChange } = useWorkOrderSocket(organizationId);
+
+  // Refrescar cuando la página obtiene foco y periódicamente
+  useEffect(() => {
+    // Refrescar cuando vuelve el foco (ej: vienes del kanban)
+    const handleFocus = () => {
+      refetch();
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    // Refrescar periódicamente cada 10 segundos
+    const interval = setInterval(refetch, 10000);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(interval);
+    };
+  }, [refetch]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; order: any }>({ open: false, order: null });
 
   const filteredOrders = workOrders.filter((order: any) => {
     const matchesSearch = 
@@ -48,33 +84,43 @@ export default function WorkOrdersPage() {
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       await updateStatus.mutateAsync({ id, status: newStatus });
+      notifyChange(id, newStatus);
+      showToast("success", "Estado actualizado exitosamente");
     } catch (error: any) {
-      alert("Error al cambiar estado: " + error.message);
+      showToast("error", error.message || "Error al cambiar estado");
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar esta orden de servicio?")) {
-      try {
-        await deleteWorkOrder.mutateAsync(id);
-      } catch (error: any) {
-        alert("Error al eliminar: " + error.message);
-      }
+  const handleDeleteClick = (order: any) => {
+    setDeleteModal({ open: true, order });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.order) return;
+    try {
+      await deleteWorkOrder.mutateAsync(deleteModal.order.id);
+      showToast("success", "Orden de servicio eliminada exitosamente");
+      setDeleteModal({ open: false, order: null });
+      refetch();
+    } catch (error: any) {
+      showToast("error", error.message || "Error al eliminar");
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "PENDING": return <Clock className="w-4 h-4" />;
+      case "RECEIVED": return <Car className="w-4 h-4" />;
+      case "DIAGNOSIS": return <Clock className="w-4 h-4" />;
+      case "APPROVED": return <CheckCircle className="w-4 h-4" />;
       case "IN_PROGRESS": return <Wrench className="w-4 h-4" />;
-      case "COMPLETED": return <CheckCircle className="w-4 h-4" />;
+      case "FINISHED": return <CheckCircle className="w-4 h-4" />;
       case "DELIVERED": return <CheckCircle className="w-4 h-4" />;
       case "CANCELLED": return <XCircle className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;
     }
   };
 
-  const statuses = ["all", "PENDING", "IN_PROGRESS", "COMPLETED", "DELIVERED", "CANCELLED"];
+  const statuses = ["all", "RECEIVED", "DIAGNOSIS", "APPROVED", "IN_PROGRESS", "FINISHED", "DELIVERED", "CANCELLED"];
 
   return (
     <AppLayout>
@@ -182,8 +228,8 @@ export default function WorkOrdersPage() {
                       ))}
                     </select>
                     <button
-                      onClick={() => handleDelete(order.id)}
-                      className="text-red-500 hover:text-red-700 p-1"
+                      onClick={() => handleDeleteClick(order)}
+                      className="text-rose-500 hover:text-rose-700 p-1"
                     >
                       <XCircle className="w-4 h-4" />
                     </button>
@@ -198,6 +244,16 @@ export default function WorkOrdersPage() {
           Total: {filteredOrders.length} órdenes de servicio
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+        title="Eliminar Orden de Servicio"
+        description={`¿Estás seguro de que deseas eliminar la orden de servicio ${deleteModal.order?.number}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={handleConfirmDelete}
+        loading={deleteWorkOrder.isPending}
+      />
     </AppLayout>
   );
 }

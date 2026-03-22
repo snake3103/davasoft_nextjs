@@ -9,10 +9,11 @@ export async function GET() {
   if (!db || !organizationId) return unauthorizedResponse();
 
   try {
+    // Mostrar todas las expenses (tanto EXPENSE como PURCHASE)
+    // porque la página de compras muestra todas las facturas de compra
     const purchases = await db.expense.findMany({
       where: { 
         organizationId,
-        type: "PURCHASE",
       },
       include: { category: true },
       orderBy: { date: "desc" },
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
     }
 
-    const { number, date, provider, categoryId, total, status, items } = result.data;
+    const { number, date, type, provider, categoryId, total, subtotal, taxId, taxName, taxRate, taxAmount, status, items } = result.data;
 
     const purchase = await db.$transaction(async (tx: any) => {
       const newPurchase = await tx.expense.create({
@@ -47,6 +48,11 @@ export async function POST(request: Request) {
           type: "PURCHASE",
           provider,
           categoryId,
+          subtotal: Number(subtotal || total || 0),
+          taxId: taxId || null,
+          taxName: taxName || null,
+          taxRate: taxRate ? Number(taxRate) : null,
+          taxAmount: Number(taxAmount || 0),
           total: Number(total),
           status: status || "PAID",
           organizationId,

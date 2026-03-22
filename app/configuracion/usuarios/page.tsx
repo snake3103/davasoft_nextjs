@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Select } from "@/components/ui/Select";
 
 interface Member {
   id: string;
@@ -45,8 +48,12 @@ interface Role {
 
 export default function UsuariosConfigPage() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [currentUserEmail, setCurrentUserEmail] = useState<string>("");
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; member: Member | null }>({ open: false, member: null });
 
   const { data: members = [], isLoading } = useQuery<Member[]>({
     queryKey: ["members"],
@@ -85,6 +92,10 @@ export default function UsuariosConfigPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
       setShowInviteModal(false);
+      showToast("success", "Usuario invitado exitosamente");
+    },
+    onError: (error: Error) => {
+      showToast("error", error.message || "Error al invitar usuario");
     },
   });
 
@@ -95,8 +106,23 @@ export default function UsuariosConfigPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["members"] });
+      showToast("success", "Usuario eliminado exitosamente");
+      setDeleteModal({ open: false, member: null });
+    },
+    onError: (error: Error) => {
+      showToast("error", error.message || "Error al eliminar usuario");
     },
   });
+
+  const handleDeleteClick = (member: Member) => {
+    setDeleteModal({ open: true, member });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteModal.member) {
+      deleteMutation.mutate(deleteModal.member.id);
+    }
+  };
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ id, systemRole }: { id: string; systemRole: string }) => {
@@ -198,49 +224,45 @@ export default function UsuariosConfigPage() {
                     </div>
                   </td>
                   <td className="px-8 py-5">
-                    <select
+                    <Select
                       value={member.systemRole}
-                      onChange={(e) => updateRoleMutation.mutate({ id: member.id, systemRole: e.target.value })}
+                      onChange={(val) => updateRoleMutation.mutate({ id: member.id, systemRole: val })}
                       disabled={isCurrentUser || updateRoleMutation.isPending}
-                      className={`bg-slate-50 border rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all cursor-pointer disabled:opacity-50 ${
-                        member.systemRole === "ADMIN"
-                          ? "border-amber-200 text-amber-700"
-                          : "border-slate-200 text-slate-600"
-                      }`}
-                    >
-                      <option value="ADMIN">Administrador</option>
-                      <option value="CONTADOR">Contador</option>
-                      <option value="VENDEDOR">Vendedor</option>
-                      <option value="USER">Usuario</option>
-                    </select>
+                      options={[
+                        { value: "ADMIN", label: "Administrador", description: "Acceso completo al sistema" },
+                        { value: "CONTADOR", label: "Contador", description: "Gestión financiera" },
+                        { value: "VENDEDOR", label: "Vendedor", description: "Ventas y clientes" },
+                        { value: "USER", label: "Usuario", description: "Acceso básico" },
+                      ]}
+                      className="min-w-[160px]"
+                    />
                   </td>
                   <td className="px-8 py-5">
-                    <select
+                    <Select
                       value={member.roleId || ""}
-                      onChange={async (e) => {
+                      onChange={async (val) => {
                         const res = await fetch(`/api/memberships/${member.id}`, {
                           method: "PATCH",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ roleId: e.target.value || null }),
+                          body: JSON.stringify({ roleId: val || null }),
                         });
                         if (res.ok) queryClient.invalidateQueries({ queryKey: ["members"] });
                       }}
-                      className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all min-w-[140px]"
-                    >
-                      <option value="">— Sin rol —</option>
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>{role.name}</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "", label: "— Sin rol —", description: "Sin permisos personalizados" },
+                        ...roles.map((role) => ({ 
+                          value: role.id, 
+                          label: role.name,
+                          description: role.description || undefined
+                        })),
+                      ]}
+                      className="min-w-[160px]"
+                    />
                   </td>
                   <td className="px-8 py-5">
                     {!isCurrentUser && (
                       <button
-                        onClick={() => {
-                          if (confirm("¿Estás seguro de eliminar este usuario de la organización?")) {
-                            deleteMutation.mutate(member.id);
-                          }
-                        }}
+                        onClick={() => handleDeleteClick(member)}
                         disabled={deleteMutation.isPending}
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                       >
@@ -293,6 +315,16 @@ export default function UsuariosConfigPage() {
           error={inviteMutation.error?.message}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ open, member: null })}
+        onConfirm={handleConfirmDelete}
+        title="Eliminar usuario"
+        description={`¿Estás seguro de eliminar a ${deleteModal.member?.user.name || deleteModal.member?.user.email} de la organización? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        variant="danger"
+      />
     </div>
     </AppLayout>
   );
@@ -309,6 +341,7 @@ function InviteUserModal({
   isLoading: boolean;
   error?: string;
 }) {
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [systemRole, setSystemRole] = useState("USER");
@@ -319,7 +352,7 @@ function InviteUserModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (createAccount && password !== confirmPassword) {
-      alert("Las contraseñas no coinciden");
+      showToast("error", "Las contraseñas no coinciden");
       return;
     }
     onInvite({ email, name, systemRole, password: createAccount ? password : undefined, createAccount });
@@ -422,16 +455,17 @@ function InviteUserModal({
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Rol del sistema</label>
-              <select
+              <Select
                 value={systemRole}
-                onChange={(e) => setSystemRole(e.target.value)}
-                className="w-full px-4 py-2 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-              >
-                <option value="ADMIN">Administrador - Acceso completo</option>
-                <option value="CONTADOR">Contador - Gestión financiera</option>
-                <option value="VENDEDOR">Vendedor - Ventas y clientes</option>
-                <option value="USER">Usuario - Acceso básico</option>
-              </select>
+                onChange={(val) => setSystemRole(val)}
+                options={[
+                  { value: "ADMIN", label: "Administrador", description: "Acceso completo" },
+                  { value: "CONTADOR", label: "Contador", description: "Gestión financiera" },
+                  { value: "VENDEDOR", label: "Vendedor", description: "Ventas y clientes" },
+                  { value: "USER", label: "Usuario", description: "Acceso básico" },
+                ]}
+                placeholder="Seleccionar rol..."
+              />
             </div>
           </div>
 

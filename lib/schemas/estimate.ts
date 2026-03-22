@@ -5,6 +5,18 @@ export const estimateItemSchema = z.object({
   description: z.string().min(1, "La descripción es requerida"),
   quantity: z.coerce.number().min(1, "La cantidad debe ser al menos 1"),
   price: z.coerce.number().min(0, "El precio no puede ser negativo"),
+  // Tax fields por línea
+  taxId: z.string().optional().nullable(),
+  taxRate: z.coerce.number().optional().default(0),
+  taxAmount: z.coerce.number().optional().default(0),
+  // Dimensiones ingresadas por el usuario
+  length: z.coerce.number().min(0).optional().nullable(),
+  width: z.coerce.number().min(0).optional().nullable(),
+  height: z.coerce.number().min(0).optional().nullable(),
+  dimensionUnit: z.enum(["CM", "M", "IN", "FT", "MM"]).optional().nullable(),
+  calculatedArea: z.coerce.number().optional().nullable(),
+  calculatedVolume: z.coerce.number().optional().nullable(),
+  pricePerDimension: z.coerce.number().optional().nullable(),
   total: z.coerce.number().optional().default(0),
 });
 

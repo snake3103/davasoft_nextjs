@@ -9,7 +9,7 @@ import { updateInvoice } from "@/app/actions/invoices";
 
 export default function EditarFacturaPage() {
     const params = useParams();
-    const id = params.id as string;
+    const id = params?.id as string;
     const { data: invoices, isLoading } = useInvoices();
 
     const invoice = invoices?.find((i: any) => i.id === id);

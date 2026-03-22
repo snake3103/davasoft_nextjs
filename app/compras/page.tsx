@@ -3,30 +3,53 @@
 import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
-import { Plus, Search, Download, Edit, Trash, ShoppingBag, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { Plus, Search, Download, Edit, Trash, ShoppingBag, Loader2, CheckCircle2, Clock, X, AlertTriangle } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { usePurchases, useDeletePurchase } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
 import Link from "next/link";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/Dialog";
+import { Button } from "@/components/ui/Button";
 
 export default function ComprasPage() {
-    const { data: purchases = [], isLoading } = usePurchases();
+    const { data: purchases = [], isLoading, refetch } = usePurchases();
     const deletePurchase = useDeletePurchase();
+    const { showToast } = useToast();
     const [searchQuery, setSearchQuery] = useState("");
+    
+    // Modal de confirmación de eliminación
+    const [deleteModal, setDeleteModal] = useState<{ open: boolean; purchase: any }>({ open: false, purchase: null });
+    const [deleting, setDeleting] = useState(false);
 
-    const handleDelete = async (id: string) => {
-        if (confirm("¿Estás seguro de que deseas eliminar esta factura de compra?")) {
-            try {
-                await deletePurchase.mutateAsync(id);
-            } catch (error: any) {
-                alert("Error al eliminar: " + error.message);
-            }
+    const handleDeleteClick = (purchase: any) => {
+        setDeleteModal({ open: true, purchase });
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteModal.purchase) return;
+        setDeleting(true);
+        try {
+            await deletePurchase.mutateAsync(deleteModal.purchase.id);
+            showToast("success", "Compra eliminada exitosamente");
+            setDeleteModal({ open: false, purchase: null });
+            refetch();
+        } catch (error: any) {
+            showToast("error", error.message || "Error al eliminar");
+        } finally {
+            setDeleting(false);
         }
     };
 
     const filteredCompras = useMemo(() => {
         return purchases.filter((purchase: any) =>
-            purchase.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            purchase.provider.toLowerCase().includes(searchQuery.toLowerCase())
+            purchase.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            purchase.provider?.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [purchases, searchQuery]);
 
@@ -72,7 +95,22 @@ export default function ComprasPage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-slate-50 border border-transparent rounded-lg py-2 pl-10 pr-10 text-sm focus:bg-white focus:border-primary/20 outline-none transition-all"
                         />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
                     </div>
+                    <button
+                        onClick={() => refetch()}
+                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
+                        title="Actualizar"
+                    >
+                        <Loader2 size={18} className={isLoading ? "animate-spin" : ""} />
+                    </button>
                 </div>
 
                 {isLoading ? (
@@ -105,12 +143,17 @@ export default function ComprasPage() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end space-x-2">
-                                        <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors">
+                                        <Link
+                                            href={`/compras/nueva?edit=${purchase.id}`}
+                                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
+                                            title="Editar"
+                                        >
                                             <Edit size={16} />
-                                        </button>
-                                        <button 
-                                            onClick={() => handleDelete(purchase.id)}
-                                            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
+                                        </Link>
+                                        <button
+                                            onClick={() => handleDeleteClick(purchase)}
+                                            className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
+                                            title="Eliminar"
                                         >
                                             <Trash size={16} />
                                         </button>
@@ -136,6 +179,46 @@ export default function ComprasPage() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de confirmación de eliminación */}
+            <Dialog open={deleteModal.open} onOpenChange={() => setDeleteModal({ open: false, purchase: null })}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-rose-600">
+                            <AlertTriangle size={24} />
+                            Eliminar Compra
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <p className="text-slate-600">
+                            ¿Estás seguro de que deseas eliminar la factura <strong>{deleteModal.purchase?.number}</strong> de <strong>{deleteModal.purchase?.provider}</strong>?
+                        </p>
+                        <p className="text-sm text-slate-400 mt-2">Esta acción no se puede deshacer.</p>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setDeleteModal({ open: false, purchase: null })}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="danger"
+                            onClick={handleConfirmDelete}
+                            disabled={deleting}
+                        >
+                            {deleting ? (
+                                <>
+                                    <Loader2 size={16} className="mr-2 animate-spin" />
+                                    Eliminando...
+                                </>
+                            ) : (
+                                <>
+                                    <Trash size={16} className="mr-2" />
+                                    Eliminar
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

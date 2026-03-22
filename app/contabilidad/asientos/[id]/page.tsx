@@ -102,7 +102,7 @@ const getTypeBadge = (type: string) => {
 
 export default function JournalEntryDetailPage() {
   const params = useParams();
-  const id = params.id as string;
+  const id = params?.id as string;
   
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);

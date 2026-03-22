@@ -23,16 +23,24 @@ interface UIState {
   isTransactionModalOpen: boolean;
 }
 
+interface WarehouseState {
+  activeWarehouseId: string | null;
+  warehouses: Array<{ id: string; name: string; isDefault: boolean }>;
+}
+
 interface AppStore {
   user: UserState | null;
   company: CompanyState;
   dashboard: DashboardState;
   ui: UIState;
+  warehouse: WarehouseState;
   notifications: Array<{ id: string; message: string; type: "success" | "error" | "info" }>;
   setUser: (user: UserState | null) => void;
   setCompany: (company: Partial<CompanyState>) => void;
   setDashboard: (dashboard: Partial<DashboardState>) => void;
   setTransactionModalOpen: (open: boolean) => void;
+  setActiveWarehouse: (warehouseId: string | null) => void;
+  setWarehouses: (warehouses: Array<{ id: string; name: string; isDefault: boolean }>) => void;
   addNotification: (message: string, type: "success" | "error" | "info") => void;
   removeNotification: (id: string) => void;
 }
@@ -52,6 +60,10 @@ export const useStore = create<AppStore>((set) => ({
   ui: {
     isTransactionModalOpen: false,
   },
+  warehouse: {
+    activeWarehouseId: null,
+    warehouses: [],
+  },
   notifications: [],
   setUser: (user) => set({ user }),
   setCompany: (company) =>
@@ -60,6 +72,18 @@ export const useStore = create<AppStore>((set) => ({
     set((state) => ({ dashboard: { ...state.dashboard, ...dashboard } })),
   setTransactionModalOpen: (open) =>
     set((state) => ({ ui: { ...state.ui, isTransactionModalOpen: open } })),
+  setActiveWarehouse: (warehouseId) =>
+    set((state) => ({ 
+      warehouse: { ...state.warehouse, activeWarehouseId: warehouseId } 
+    })),
+  setWarehouses: (warehouses) =>
+    set((state) => ({ 
+      warehouse: { 
+        ...state.warehouse, 
+        warehouses,
+        activeWarehouseId: warehouses.find(w => w.isDefault)?.id || warehouses[0]?.id || null
+      } 
+    })),
   addNotification: (message, type) =>
     set((state) => ({
       notifications: [

@@ -16,7 +16,7 @@ function LoginForm() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
-        if (searchParams.get("registered") === "true") {
+        if (searchParams?.get("registered") === "true") {
             setSuccessMessage("¡Cuenta creada con éxito! Inicia sesión para continuar.");
         }
     }, [searchParams]);

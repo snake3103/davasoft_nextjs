@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useActionState } from "react";
 import { X } from "lucide-react";
 import { registerPayment } from "@/app/actions/payments";
+import { Select } from "@/components/ui/Select";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface PaymentModalProps {
 export function PaymentModal({ isOpen, onClose, document }: PaymentModalProps) {
   const [state, formAction, isPending] = useActionState(registerPayment, null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
 
   useEffect(() => {
     if (state?.error) {
@@ -100,17 +102,18 @@ export function PaymentModal({ isOpen, onClose, document }: PaymentModalProps) {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Método de Pago *
             </label>
-            <select
-              name="method"
-              defaultValue="CASH"
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
-              required
-            >
-              <option value="CASH">Efectivo</option>
-              <option value="BANK_TRANSFER">Transferencia Bancaria</option>
-              <option value="CREDIT_CARD">Tarjeta de Crédito</option>
-              <option value="OTHER">Otro</option>
-            </select>
+            <input type="hidden" name="method" value={paymentMethod} />
+            <Select
+              value={paymentMethod}
+              onChange={(val) => setPaymentMethod(val)}
+              options={[
+                { value: "CASH", label: "Efectivo", description: "Pago en efectivo" },
+                { value: "BANK_TRANSFER", label: "Transferencia Bancaria", description: "Transferencia desde cuenta bancaria" },
+                { value: "CREDIT_CARD", label: "Tarjeta de Crédito", description: "Pago con tarjeta" },
+                { value: "OTHER", label: "Otro", description: "Otro método de pago" },
+              ]}
+              placeholder="Seleccionar método..."
+            />
           </div>
 
           <div>

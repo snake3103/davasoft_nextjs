@@ -1,11 +1,11 @@
 import { PrismaClient } from "@prisma/client";
-import { Pool } from "pg";
+import { PoolConfig } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { env } from "@/lib/env";
 
 const connectionString = env.DATABASE_URL;
-const pool = new Pool({ connectionString });
-const adapter = new PrismaPg(pool);
+const poolConfig: PoolConfig = { connectionString };
+const adapter = new PrismaPg(poolConfig);
 
 const globalForPrisma = global as unknown as { prismaClient: PrismaClient };
 
@@ -32,6 +32,11 @@ const GLOBAL_MODELS = [
 ];
 
 const MODELS_WITH_ORG = [
+  "User",
+  "Account",
+  "Session",
+  "Organization",
+  "Membership",
   "Client",
   "Product",
   "Category",
@@ -51,13 +56,29 @@ const MODELS_WITH_ORG = [
   "BankAccount",
   "Income",
   "InventoryMovement",
+  "InventoryWarehouse",
   "CashDrawerShift",
   "ProductAttribute",
   "ProductAttributeValue",
+  "ProductAlert",
   "BillOfMaterials",
   "BoMItem",
+  "MaterialSubstitute",
   "ProductionOrder",
   "ProductionConsumption",
+  "ProductionReservation",
+  "BankReconciliation",
+  "ReconciliationItem",
+  "Tax",
+  "Notification",
+  // Activos Fijos
+  "AssetCategory",
+  "FixedAsset",
+  "AssetDepreciation",
+  // Retenciones
+  "Retention",
+  // Ajustes cambiarios
+  "ExchangeRateAdjustment",
 ];
 
 export function getScopedPrisma(organizationId: string) {

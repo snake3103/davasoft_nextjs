@@ -6,12 +6,17 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Car, User, Phone, XCircle } from "lucide-react";
 import { useVehicles, useDeleteVehicle } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export default function VehiclesPage() {
-  const { data: vehicles = [], isLoading } = useVehicles();
+  const { data: vehicles = [], isLoading, refetch } = useVehicles();
   const deleteVehicle = useDeleteVehicle();
-
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; vehicle: any }>({ open: false, vehicle: null });
 
   const filteredVehicles = vehicles.filter((vehicle: any) => {
     const matchesSearch = 
@@ -23,13 +28,19 @@ export default function VehiclesPage() {
     return matchesSearch;
   });
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este vehículo?")) {
-      try {
-        await deleteVehicle.mutateAsync(id);
-      } catch (error: any) {
-        alert("Error al eliminar: " + error.message);
-      }
+  const handleDeleteClick = (vehicle: any) => {
+    setDeleteModal({ open: true, vehicle });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.vehicle) return;
+    try {
+      await deleteVehicle.mutateAsync(deleteModal.vehicle.id);
+      showToast("success", "Vehículo eliminado exitosamente");
+      setDeleteModal({ open: false, vehicle: null });
+      refetch();
+    } catch (error: any) {
+      showToast("error", error.message || "Error al eliminar");
     }
   };
 
@@ -114,8 +125,8 @@ export default function VehiclesPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <button
-                    onClick={() => handleDelete(vehicle.id)}
-                    className="text-red-500 hover:text-red-700 p-1"
+                    onClick={() => handleDeleteClick(vehicle)}
+                    className="text-rose-500 hover:text-rose-700 p-1 transition-colors"
                   >
                     <XCircle className="w-4 h-4" />
                   </button>
@@ -129,6 +140,16 @@ export default function VehiclesPage() {
           Total: {filteredVehicles.length} vehículos
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+        title="Eliminar Vehículo"
+        description={`¿Estás seguro de que deseas eliminar el vehículo "${deleteModal.vehicle?.brand} ${deleteModal.vehicle?.model}" (${deleteModal.vehicle?.plates})? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={handleConfirmDelete}
+        loading={deleteVehicle.isPending}
+      />
     </AppLayout>
   );
 }

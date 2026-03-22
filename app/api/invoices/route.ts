@@ -26,7 +26,12 @@ export async function GET() {
     const invoices = await db.invoice.findMany({
       include: { 
         client: true, 
-        items: { include: { product: true } },
+        items: { 
+          include: { 
+            product: true,
+            tax: true  // Incluir información del impuesto por línea
+          } 
+        },
         payments: true
       },
       orderBy: { date: "desc" },
@@ -93,10 +98,29 @@ export async function POST(request: Request) {
               total: item.total,
               description: item.description,
               productId: item.productId || null,
+              // Nuevos campos de impuesto por línea
+              taxId: item.taxId || null,
+              taxRate: item.taxRate || 0,
+              taxAmount: item.taxAmount || 0,
+              // Campos de dimensiones
+              length: item.length || null,
+              width: item.width || null,
+              height: item.height || null,
+              dimensionUnit: item.dimensionUnit || null,
+              calculatedArea: item.calculatedArea || null,
+              calculatedVolume: item.calculatedVolume || null,
+              pricePerDimension: item.pricePerDimension || null,
             })),
           },
         },
-        include: { items: true },
+        include: { 
+          items: { 
+            include: { 
+              product: true,
+              tax: true
+            } 
+          } 
+        },
       });
 
       // 1.5. Create payments if provided (POS immediate payment)

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useActionState } from "react";
 import { X } from "lucide-react";
 import { createAccount, updateAccount } from "@/app/actions/accounting";
+import { Select } from "@/components/ui/Select";
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -27,6 +28,8 @@ export function AccountModal({ isOpen, onClose, account }: AccountModalProps) {
 
   const [localError, setLocalError] = useState<string | null>(null);
   const [parentAccounts, setParentAccounts] = useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [accountType, setAccountType] = useState(account?.type || "ASSET");
+  const [parentId, setParentId] = useState(account?.parentId || "");
 
   // Cargar cuentas padre cuando se abre el modal
   useEffect(() => {
@@ -114,36 +117,39 @@ export function AccountModal({ isOpen, onClose, account }: AccountModalProps) {
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Tipo *
             </label>
-            <select
-              name="type"
-              defaultValue={account?.type || "ASSET"}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-              required
-            >
-              <option value="ASSET">Activo (1xxx)</option>
-              <option value="LIABILITY">Pasivo (2xxx)</option>
-              <option value="EQUITY">Patrimonio (3xxx)</option>
-              <option value="REVENUE">Ingreso (4xxx)</option>
-              <option value="EXPENSE">Gasto (5xxx)</option>
-            </select>
+            <input type="hidden" name="type" value={accountType} />
+            <Select
+              value={accountType}
+              onChange={(val) => setAccountType(val)}
+              options={[
+                { value: "ASSET", label: "Activo (1xxx)", description: "Recursos controlados por la empresa" },
+                { value: "LIABILITY", label: "Pasivo (2xxx)", description: "Obligaciones con terceros" },
+                { value: "EQUITY", label: "Patrimonio (3xxx)", description: "Capital y reservas" },
+                { value: "REVENUE", label: "Ingreso (4xxx)", description: "Beneficios económicos" },
+                { value: "EXPENSE", label: "Gasto (5xxx)", description: "Costos y gastos operativos" },
+              ]}
+              placeholder="Seleccionar tipo..."
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Cuenta Padre
             </label>
-            <select
-              name="parentId"
-              defaultValue={account?.parentId || ""}
-              className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-            >
-              <option value="">Ninguna (cuenta principal)</option>
-              {parentAccounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.code} - {acc.name}
-                </option>
-              ))}
-            </select>
+            <input type="hidden" name="parentId" value={parentId} />
+            <Select
+              value={parentId}
+              onChange={(val) => setParentId(val)}
+              options={[
+                { value: "", label: "Ninguna (cuenta principal)", description: "No tiene cuenta padre" },
+                ...parentAccounts.map((acc) => ({ 
+                  value: acc.id, 
+                  label: `${acc.code} - ${acc.name}`,
+                  description: "Cuenta padre"
+                })),
+              ]}
+              placeholder="Buscar cuenta padre..."
+            />
           </div>
 
           <div>

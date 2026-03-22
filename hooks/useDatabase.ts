@@ -1,5 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+// --- HOOKS PARA IMPUESTOS ---
+export function useTaxes() {
+  return useQuery({
+    queryKey: ["taxes"],
+    queryFn: async () => {
+      const res = await fetch("/api/taxes");
+      if (!res.ok) throw new Error("Error fetching taxes");
+      return res.json();
+    },
+  });
+}
+
 // --- HOOKS PARA CLIENTES ---
 export function useClients() {
   return useQuery({
@@ -33,6 +45,64 @@ export function useProducts() {
       const res = await fetch("/api/products");
       if (!res.ok) throw new Error("Error fetching products");
       return res.json();
+    },
+  });
+}
+
+export function useProduct(id: string) {
+  return useQuery({
+    queryKey: ["products", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/${id}`);
+      if (!res.ok) throw new Error("Error fetching product");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+// --- HOOKS PARA ALERTAS DE STOCK BAJO ---
+export function useLowStockAlerts() {
+  return useQuery({
+    queryKey: ["lowStockAlerts"],
+    queryFn: async () => {
+      const res = await fetch("/api/products/low-stock");
+      if (!res.ok) throw new Error("Error fetching low stock alerts");
+      return res.json();
+    },
+    refetchInterval: 60000, // Refrescar cada minuto
+  });
+}
+
+export function useLowStockCount() {
+  const { data } = useLowStockAlerts();
+  return data?.length || 0;
+}
+
+// Mutation para actualizar configuración de alerta
+export function useUpdateProductAlert() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      productId: string;
+      minQuantity: number;
+      warehouseId?: string;
+      isActive?: boolean;
+    }) => {
+      const res = await fetch(`/api/products/low-stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error updating alert");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lowStockAlerts"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
     },
   });
 }
@@ -766,7 +836,14 @@ export function useUpdateWorkOrderStatus() {
       return res.json();
     },
     onSuccess: () => {
+      // Invalidar tanto la lista como el kanban
       queryClient.invalidateQueries({ queryKey: ["workOrders"] });
+      queryClient.invalidateQueries({ queryKey: ["workOrdersKanban"] });
+      // También invalidar por tipo de query
+      queryClient.invalidateQueries({ predicate: (query) => {
+        const key = query.queryKey[0];
+        return typeof key === 'string' && key.includes('workOrders');
+      }});
     },
   });
 }
@@ -781,6 +858,306 @@ export function useDeleteWorkOrder() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workOrders"] });
+    },
+  });
+}
+
+// --- HOOKS PARA BODEGAS / WAREHOUSES ---
+export function useWarehouses() {
+  return useQuery({
+    queryKey: ["warehouses"],
+    queryFn: async () => {
+      const res = await fetch("/api/warehouses");
+      if (!res.ok) throw new Error("Error fetching warehouses");
+      return res.json();
+    },
+  });
+}
+
+export function useWarehouse(id: string) {
+  return useQuery({
+    queryKey: ["warehouses", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/warehouses/${id}`);
+      if (!res.ok) throw new Error("Error fetching warehouse");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: any) => {
+      const res = await fetch("/api/warehouses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error creating warehouse");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+    },
+  });
+}
+
+export function useUpdateWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/warehouses/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error updating warehouse");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+    },
+  });
+}
+
+export function useDeleteWarehouse() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/warehouses/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error deleting warehouse");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+    },
+  });
+}
+
+// --- HOOKS PARA TRANSFERENCIAS DE INVENTARIO ---
+export function useTransferInventory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      productId: string;
+      fromWarehouseId: string;
+      toWarehouseId: string;
+      quantity: number;
+      notes?: string;
+    }) => {
+      const res = await fetch("/api/inventory/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error transferring inventory");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["warehouses"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useWarehouseInventory(warehouseId?: string) {
+  return useQuery({
+    queryKey: ["warehouseInventory", warehouseId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (warehouseId) params.append("warehouseId", warehouseId);
+      const res = await fetch(`/api/inventory/warehouse?${params}`);
+      if (!res.ok) throw new Error("Error fetching warehouse inventory");
+      return res.json();
+    },
+    enabled: true,
+  });
+}
+
+export function useProductWarehouseStock(productId: string) {
+  return useQuery({
+    queryKey: ["productWarehouseStock", productId],
+    queryFn: async () => {
+      if (!productId) return null;
+      const res = await fetch(`/api/inventory/transfer?productId=${productId}`);
+      if (!res.ok) throw new Error("Error fetching product stock");
+      return res.json();
+    },
+    enabled: !!productId,
+  });
+}
+
+// --- HOOKS PARA DATOS FISCALES DE CLIENTES ---
+export function useClientFiscalData(clientId: string) {
+  return useQuery({
+    queryKey: ["clientFiscalData", clientId],
+    queryFn: async () => {
+      if (!clientId) return null;
+      const res = await fetch(`/api/clients/fiscal?clientId=${clientId}`);
+      if (!res.ok) throw new Error("Error fetching fiscal data");
+      return res.json();
+    },
+    enabled: !!clientId,
+  });
+}
+
+export function useSaveClientFiscalData() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      clientId: string;
+      taxId?: string;
+      fiscalRegime?: string;
+      contributorType?: string;
+      addressFiscal?: string;
+      phoneFiscal?: string;
+      emailBilling?: string;
+      dgiiStatus?: string;
+      agentRetention?: boolean;
+      agentPerception?: boolean;
+    }) => {
+      const res = await fetch("/api/clients/fiscal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error saving fiscal data");
+      }
+      return res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["clientFiscalData", variables.clientId] });
+      queryClient.invalidateQueries({ queryKey: ["clients", variables.clientId] });
+    },
+  });
+}
+
+export function useDeleteClientFiscalData() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (clientId: string) => {
+      const res = await fetch(`/api/clients/fiscal?clientId=${clientId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error deleting fiscal data");
+      }
+      return res.json();
+    },
+    onSuccess: (_, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ["clientFiscalData", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["clients", clientId] });
+    },
+  });
+}
+
+// --- HOOKS PARA CENTROS DE COSTO ---
+export function useCostCenters() {
+  return useQuery({
+    queryKey: ["costCenters"],
+    queryFn: async () => {
+      const res = await fetch("/api/cost-centers");
+      if (!res.ok) throw new Error("Error fetching cost centers");
+      return res.json();
+    },
+  });
+}
+
+export function useCostCenter(id: string) {
+  return useQuery({
+    queryKey: ["costCenters", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/cost-centers/${id}`);
+      if (!res.ok) throw new Error("Error fetching cost center");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateCostCenter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      code: string;
+      name: string;
+      description?: string;
+      isActive?: boolean;
+    }) => {
+      const res = await fetch("/api/cost-centers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error creating cost center");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["costCenters"] });
+    },
+  });
+}
+
+export function useUpdateCostCenter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const res = await fetch(`/api/cost-centers/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error updating cost center");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["costCenters"] });
+    },
+  });
+}
+
+export function useDeleteCostCenter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/cost-centers/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Error deleting cost center");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["costCenters"] });
     },
   });
 }

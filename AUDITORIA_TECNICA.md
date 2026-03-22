@@ -1,282 +1,568 @@
-# Auditoría Técnica y Estado del Proyecto - Alegra Clone
+# Auditoría Técnica Completa - alegra-clone vs Alegra
 
-Este documento fue generado tras un proceso exhaustivo de depuración, optimización de seguridad y refactorización a un stack moderno con Next.js 16 (React 19).
-
-**Última Actualización:** Marzo 2026.
-**Objetivo del Documento:** Servir de mapa arquitectónico y de estado para cualquier agente de IA o desarrollador que asuma el mantenimiento y evolución de la aplicación.
+**Última Actualización:** Marzo 2026  
+**Objetivo:** Analizar el estado actual del sistema y compararlo con Alegra (sin facturación electrónica) para identificar funcionalidades faltantes y roadmap de desarrollo.
 
 ---
 
-## 🏗 Arquitectura y Stack Tecnológico
+## 1. Estado Actual del Proyecto
 
-### 1. Framework Core
-- **Next.js 16.1.6** usando App Router (`app/`).
-- **React 19.2.3** con las últimas características de React como `useActionState` y Server Actions integradas nativamente en componentes asíncronos (`"use server"`).
-- **Tailwind CSS v4** y `tailwind-merge` + `clsx` para utilidades de clases e interfaces.
-- `lucide-react` para iconografía estándar.
+### 1.1 Stack Tecnológico
+| Componente | Tecnología | Versión |
+|------------|-------------|---------|
+| Framework | Next.js | 16.1.6 |
+| UI | React | 19.2.3 |
+| Estilos | Tailwind CSS | v4 |
+| Base de Datos | PostgreSQL | - |
+| ORM | Prisma | 7.4.1 |
+| Autenticación | NextAuth.js (Auth.js) | Beta.30 |
+| Estado Cliente | React Query + Zustand | v5 / v5.0.11 |
+| Validación | Zod | 4.3.6 |
+| Testing | Vitest + Playwright | - |
 
-### 2. Backend & Base de Datos
-- **Prisma ORM** (@prisma/client v7.4.1) para interactuar con la base de datos relacional.
-- **PostgreSQL** mediante `@prisma/adapter-pg` puro (Driver de Next.js `pg`), conectado a proveedor cloud (Supabase/Neon).
-- Autenticación basada en **NextAuth.js (Auth.js Beta.30)** junto con el adaptador oficial `@auth/prisma-adapter`.
-- **Middleware:** Next.js nativo para proteger las rutas privadas bajo `middleware.ts`. *(Cloudflare proxy fue descontinuado)*.
+### 1.2 Módulos Implementados
 
-### 3. Estado y Fetching del lado del Cliente
-- **React Query (@tanstack/react-query v5.90.21):** Manejo de peticiones in-browser y sincronizado manual de caché local (`queryClient.invalidateQueries()`) después de mutar la data mediante Server Actions.
-- **Zustand v5.0.11:** Manejo de estado global liviano (útil en casos complejos que no requieran persistencia pos-recarga).
-
-### 4. Validaciones en API / Acciones
-- **Zod v4.3.6:** Definición de esquemas rigurosos en `lib/schemas/*.ts` que validan todas las entradas antes de inyectarlas vía Prisma, previniendo datos mal formadas y ataques de SQL Injection escondidos en las variables JS. (Aprovechamiento de validaciones y coerciones de tipos como `z.coerce.date()`).
-
-### 5. Utilidades Adicionales
-- **bcryptjs** para hash de contraseñas.
-- **decimal.js** para cálculos precisos con decimales.
-- **jspdf + jspdf-autotable** para generación de PDFs.
-- **recharts** para gráficos y visualizaciones.
-- **react-hook-form** para manejo de formularios.
-- **next-intl** para internacionalización.
-
----
-
-## 🗂 Estructura del Proyecto
-
-El código está organizado bajo el directorio `app/` (para ruteo y controladores del lado del servidor) y carpetas periféricas para lógica y componentes:
-
-```
-/
-├── app/                              # Ruteo principal (Pages, Layouts, Server Actions)
-│   ├── actions/                      # Server Actions Puras ("use server")
-│   │   ├── accounting.ts             # Acciones contables
-│   │   ├── auth.ts                   # Acciones de autenticación
-│   │   ├── clients.ts                # Gestión de clientes
-│   │   ├── estimates.ts              # Cotizaciones
-│   │   ├── invoices.ts               # Facturas
-│   │   ├── inventory.ts              # Inventario y movimientos
-│   │   ├── payments.ts               # Pagos
-│   │   ├── products.ts               # Productos
-│   │   └── roles.ts                  # Gestión de roles
-│   ├── api/                          # Endpoints REST legacy e integraciones de NextAuth
-│   ├── [módulos]/                   # Módulos de la aplicación
-│   │   ├── ventas/                   # Facturación y ventas
-│   │   ├── compras/                  # Compras
-│   │   ├── contactos/                # Clientes y proveedores
-│   │   ├── inventario/               # Gestión de inventario
-│   │   ├── bancos/                   # Cuentas bancarias
-│   │   ├── caja/                     # Caja - Cobro de facturas pendientes
-│   │   ├── gastos/                   # Gastos
-│   │   ├── ingresos/                 # Ingresos
-│   │   ├── cotizaciones/             # Cotizaciones
-│   │   ├── contabilidad/             # Contabilidad (asientos, plan de cuentas, reportes)
-│   │   ├── configuracion/           # Configuración del sistema
-│   │   ├── reportes/                # Reportes
-│   │   ├── pos/                      # Punto de venta
-│   │   └── ayuda/                    # Ayuda
-│   ├── login/                        # Página de login
-│   ├── registro/                     # Página de registro
-│   ├── page.tsx                      # Dashboard principal
-│   ├── layout.tsx                    # Shell global
-│   └── middleware.ts                 # Middleware para proteger rutas sin sesión
-├── components/                       # Componentes UI de React
-│   ├── layout/                       # AppLayout, Header, Sidebar
-│   ├── forms/                        # Formularios principales (InvoiceForm)
-│   ├── modals/                       # Modales (ProductModal, ContactModal, CheckoutModal, etc.)
-│   ├── ui/                           # Componentes genéricos (Table, Autocomplete)
-│   ├── accounting/                   # Componentes contables
-│   ├── contacts/                     # Formularios de contactos
-│   ├── inventory/                    # Formularios de inventario
-│   ├── estimates/                     # Formularios de cotizaciones
-│   ├── payments/                      # Componentes de pagos
-│   ├── dashboard/                    # Componentes del dashboard
-│   └── providers/                    # Proveedores de contexto (QueryProvider)
-├── lib/                              # Código y utilidades core
-│   ├── prisma.ts                     # Instancia Prisma con extensión para multitenant
-│   ├── env.ts                        # Wrapper Zod de process.env
-│   ├── schemas/                      # Esquemas de validación Zod
-│   │   ├── invoice.ts, estimate.ts, product.ts
-│   │   ├── client.ts, expense.ts, income.ts
-│   │   ├── accounting.ts, register.ts
-│   ├── utils.ts                      # Utilidades varias
-│   ├── permissions.ts                # Sistema de permisos
-│   ├── api-helpers.ts                # Helpers para APIs
-│   ├── decimal.utils.ts               # Utilidades para decimales
-│   ├── pdf-reports.ts                # Generación de PDFs
-│   └── config.ts                     # Configuración global
-├── hooks/                           # Custom hooks
-│   ├── useDatabase.ts                # Hook para consultas a la BD
-│   └── useRealtimeTransactions.ts   # Hook para actualizaciones en tiempo real
-├── prisma/                           # Definición de la BD
-│   ├── schema.prisma                  # Esquema completo con todos los modelos
-│   ├── seed.ts                        # Script de seed
-│   └── migrations/                   # Migraciones
-├── __tests__/                        # Tests unitarios (Vitest)
-│   ├── utils.test.ts
-│   ├── schemas.test.ts
-│   └── invoice.test.ts
-├── store/                            # Estado global (Zustand)
-│   └── useStore.ts
-└── public/                          # Archivos estáticos
-```
+| Módulo | Estado | Completitud |
+|--------|--------|-------------|
+| Autenticación | ✅ Completo | 100% |
+| Multi-empresa (Organizations) | ✅ Completo | 100% |
+| Roles y Permisos | ✅ Completo | 100% |
+| Contactos (Clientes/Proveedores) | ✅ Completo | 90% |
+| Productos/Inventario | ✅ Completo | 80% |
+| Facturación (Ventas) | ✅ Completo | 85% |
+| Cotizaciones | ✅ Completo | 85% |
+| Compras | ✅ Parcial | 40% |
+| Gastos | ✅ Completo | 85% |
+| Ingresos | ✅ Completo | 85% |
+| Pagos | ✅ Completo | 85% |
+| Bancos | ✅ Parcial | 60% |
+| Contabilidad | ✅ Parcial | 65% |
+| POS (Punto de Venta) | ✅ Completo | 90% |
+| Caja | ✅ Completo | 85% |
+| Órdenes de Servicio (Taller) | ✅ Parcial | 70% |
+| Manufactura | ✅ Parcial | 40% |
+| Reportes | ✅ Parcial | 50% |
 
 ---
 
-## ✅ Funcionalidades Clave y Nivel de Terminado
+## 2. Análisis Comparativo: alegra-clone vs Alegra
 
-### 1. Server Actions Implementadas (100% Sincronizadas)
-Todos los flujos de "Creación", "Edición" y "Eliminación" dependían antes de mutaciones `useMutation` a mano sobre la API REST. Se han migrado hacia Next.js **Server Actions** (`app/actions/*.ts`).
-- **Ventajas alcanzadas:** Mejora general de seguridad. Cada Server Action primero verifica **internamente** si hay sesión válida de `organizationId`, y encierra las operaciones complejas (Cotizaciones Items / Facturas Items) con transacciones de Prisma `tx.invoice.update(...)`.
-- **Módulos bajo este patrón:** Inventario (Productos), Ventas (Facturas), Cotizaciones, Contactos (Clientes/Proveedores), Contabilidad, Pagos, Roles.
+### 2.1 Módulo de Inventario
 
-### 2. Formularios Híbridos (Cliente-Acción)
-Nuevos formularios como `InvoiceForm.tsx`, `EstimateForm.tsx` y `ProductModal.tsx` utilizan el componente de formulario con el Hook experimental `useActionState(action, initialState)` en React 19.
-Al finalizar el flujo con éxito, las peticiones realizan la deshidratación del caché del lado del cliente llamando a:
-```ts
-queryClient.invalidateQueries({ queryKey: ["modelName"] })
-```
-
-### 3. Modelo Multitenant de Datos (Organizaciones)
-El modelo base provee separación por empresas (`organizationId`), siendo esta mandatoria en *todas* las operaciones CRUD.
-- `auth()` provee en la sesión el `organizationId`. Se evita un ID null o consultas cruzadas.
-- **Extensión Prisma:** Se implementó `getScopedPrisma()` que inyecta automáticamente `organizationId` en todas las operaciones (create, findMany, updateMany, deleteMany, etc.).
-
-### 4. Sistema de POS (Punto de Venta)
-Sistema completo de punto de venta con dos modos de operación configurables:
-
-#### Tipos de POS (configurables en `/configuracion/pos`):
-- **STANDARD (Caja Normal):** Facturación y cobro en el mismo lugar. Un solo botón "Cobrar" que hace todo el proceso.
-- **SPLIT (Facturar):** Facturación en el POS, cobro en módulo de Caja separado. Solo botón "Facturar" en el POS.
-
-#### Funcionalidades del POS:
-- Carrito de compras interactivo
-- Selector de clientes
+#### ✅ Implementado en alegra-clone:
+- Creación de productos y servicios
 - Categorías de productos
+- Movimientos de inventario
+- Control de stock
+- Métodos de costeo (FIFO, Promedio, LIFO)
+- Atributos de productos
+- Listas de precios
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Multi-bodegas** | ALTA | Media | Gestión de múltiples almacenes con transferencias entre ellos |
+| **Variantes de productos** | ALTA | Media | Colores, tallas, tamaños como variantes |
+| **Kardex detallado** | MEDIA | Alta | Registro histórico completo de entradas/salidas por producto |
+| **Importación masiva Excel** | ALTA | Media | Bulk import/update de productos |
+| **Exportación masiva** | MEDIA | Baja | Exportar inventario a Excel |
+| **Alertas stock bajo** | ALTA | Baja | Notificaciones cuando el stock llega al mínimo |
+| **Kits/Combos** | MEDIA | Media | Paquetes de productos como un solo ítem |
+| **Campos adicionales personalizados** | MEDIA | Media | Campos custom por producto |
+| **Código de barras** | BAJA | Baja | Gestión de códigos de barras |
+| **Valorización de inventario** | MEDIA | Media | Reporte de valor total del inventario |
+
+#### Estado Allegra Inventario:
+```
+✅ Productos y servicios
+✅ Control de inventario (stock en tiempo real)
+✅ Múltiples bodegas
+✅ Variantes (color, talla, etc.)
+✅ Listas de precios
+✅ Importar/exportar Excel
+✅ Ajustes de inventario
+✅ Alertas de stock bajo
+✅ Kits/Combos
+✅ Campos adicionales
+✅ Código de barras
+✅ Valorización de inventario
+✅ Métodos de costeo (FIFO, Promedio)
+✅ Reportes: Valor de inventario, Rentabilidad por ítem
+```
+
+---
+
+### 2.2 Módulo de Contactos
+
+#### ✅ Implementado en alegra-clone:
+- Creación de clientes y proveedores
+- Tipos de contacto (CLIENT, PROVIDER, BOTH)
+- Información básica (nombre, email, teléfono, dirección)
+- ID Number (NIT)
+- Historial de transacciones
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Datos fiscales extendidos** | ALTA | Baja | Información tributaria por país |
+| **Lista de precios por cliente** | MEDIA | Media | Precios especiales por cliente |
+| **Crédito máximo del cliente** | MEDIA | Baja | Límite de crédito |
+| **Condiciones de pago por cliente** | MEDIA | Baja | Días de crédito |
+| **Historial completo** | MEDIA | Media | Todas las transacciones del cliente |
+| **Portal del cliente** | BAJA | Alta | Acceso self-service |
+| **Archivos adjuntos** | BAJA | Baja | Documentos del contacto |
+
+#### Estado Alegra Contactos:
+```
+✅ Contactos (clientes, proveedores)
+✅ Información fiscal extendida
+✅ Lista de precios por cliente
+✅ Crédito máximo y condiciones
+✅ Historial completo de transacciones
+✅ Portal cliente
+✅ Archivos adjuntos
+✅ Notas y observaciones
+✅ Importar/exportar contactos
+```
+
+---
+
+### 2.3 Módulo de Ventas (Facturas)
+
+#### ✅ Implementado en alegra-clone:
+- Creación de facturas
+- Items con impuestos
+- Aplicación de pagos parciales
+- Estados (DRAFT, SENT, PAID, CANCELLED, PARTIAL)
+- Notas crédito/débito
+- Integración con POS
+- Integración contable automática
+- Numeración configurable
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Serie de facturación** | ALTA | Baja | Múltiples series por sucursal |
+| **Descuentos por ítem** | MEDIA | Baja | Descuentos porcentuals o fijos |
+| **Facturas recurrentes** | BAJA | Media | Facturación automática periódica |
+| **Envío por email/WHATSAPP** | ALTA | Media | Notificaciones al cliente |
+| **Plantillas de email** | MEDIA | Media | Personalización de correos |
+| **Integración e-commerce** | BAJA | Alta | Shopify, MercadoLibre, etc. |
+| **Pagos en línea** | MEDIA | Alta | Integración con PayU, Stripe |
+| **Notas de crédito/débito** | ALTA | Media | Completar funcionalidad |
+| **Anticipos** | MEDIA | Media | Pagos anticipados |
+| **Ventas a crédito** | MEDIA | Media | Facturas pendiente de pago con fecha vencimiento |
+
+**Nota:** La facturación electrónica (DIAN, SAT, etc.) está EXCLUIDA de este análisis por request del cliente.
+
+---
+
+### 2.4 Módulo de Compras
+
+#### ✅ Implementado en alegra-clone:
+- Módulo de compras básico
+- Órdenes de compra
+- Recepción de inventario
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Órdenes de compra completas** | ALTA | Media | Crear, enviar, recibir órdenes |
+| **Recepción de mercancía** | ALTA | Alta | Check-in de productos recibidos |
+| **Devoluciones a proveedores** | ALTA | Media | Notas crédito proveedor |
+| **Comparación de precios proveedores** | MEDIA | Media | Cotizaciones de múltiples proveedores |
+| **Importación de facturas proveedor** | MEDIA | Media | Manejo de facturas de compra |
+| **Retenciones de compra** | ALTA | Media | Retención ISR, IVA, etc. |
+
+#### Estado Allegra Compras:
+```
+✅ Facturas de proveedor
+✅ Órdenes de compra
+✅ Recepciones
+✅ Notas crédito proveedor
+✅ Retenciones (ISR, IVA, fletes)
+✅ Importación masiva
+✅ Historial por proveedor
+```
+
+---
+
+### 2.5 Módulo de Tesorería (Bancos y Caja)
+
+#### ✅ Implementado en alegra-clone:
+- Cuentas bancarias
+- Tipos de cuenta (CHECKING, SAVINGS, CASH, CREDIT)
+- Transferencias entre cuentas
+- Conciliación bancaria básica
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Conexión bancaria en tiempo real** | ALTA | Alta | Integración API con bancos |
+| **Importación extractos (PDF/Excel)** | ALTA | Alta | Leer extractos bancarios |
+| **Conciliación bancaria inteligente** | ALTA | Alta | Matching automático de transacciones |
+| **Conciliación con IA** | MEDIA | Muy Alta | Detección automática con IA |
+| **Flujo de caja proyectado** | MEDIA | Alta | Forecasting de efectivo |
+| **Cheques** | MEDIA | Media | Gestión de cheques emitidos/recibidos |
+| **Tarjetas de crédito** | MEDIA | Media | Control de tarjetas corporativas |
+| **Gastos recurrentes** | BAJA | Media | Automatización de pagos |
+| **Nóminas** | BAJA | Muy Alta | Procesamiento de nómina |
+
+#### Estado Allegra Tesorería:
+```
+✅ Cuentas de banco y caja
+✅ Conexión bancaria (Banco Popular, Banreservas, etc.)
+✅ Importación de extractos (PDF/imagen)
+✅ Conciliación bancaria automática
+✅ Conciliación con IA
+✅ Transferencias
+✅ Cheques
+✅ Tarjetas de crédito
+✅ Conciliación bancaria a facturas
+✅ Reporte de diferencia en cambio
+✅ Flujo de caja proyectado
+```
+
+---
+
+### 2.6 Módulo de Contabilidad
+
+#### ✅ Implementado en alegra-clone:
+- Plan de cuentas jerárquico
+- Tipos de cuenta (ACTIVO, PASIVO, etc.)
+- Asientos contables
+- Asientos automáticos por documentos
+- Reportes: Balance, Estado de Resultados
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Certificados de retención** | ALTA | Media | Generar certificados para clientes/proveedores |
+| **Cuentas incobrables** | MEDIA | Media | Castigo de cuentas |
+| **Ajustes por diferencia en cambio** | ALTA | Alta | Ajustes cambiarios periódicos |
+| **Depreciación de activos** | ALTA | Alta | Cálculo automático de depreciación |
+| **Provisiones** | MEDIA | Media | Provisiones mensuales |
+| **Cierre mensual/anual** | ALTA | Alta | Proceso de cierre contable |
+| **Espacio Contador** | MEDIA | Alta | Panel especializado para contadores |
+| **Calendario tributario** | BAJA | Media | Fechas importantes de impuestos |
+
+#### Estado Allegra Contabilidad:
+```
+✅ Plan de cuentas customizable
+✅ Asientos contables
+✅ Asientos automáticos por documentos
+✅ Certificados de retención
+✅ Retenciones (ISR, IVA, ICA, etc.)
+✅ Cuentas incobrables
+✅ Ajustes por diferencia en cambio
+✅ Reportes contables (Balance, P&G, etc.)
+✅ Espacio Contador
+✅ Calendario tributario
+✅ Centro de costos
+```
+
+---
+
+### 2.7 Módulo de Activos Fijos
+
+#### ❌ No Implementado en alegra-clone:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Registro de activos** | ALTA | Media | Tangibles e intangibles |
+| **Categorización de activos** | ALTA | Baja | Edificios, vehículos, equipos, etc. |
+| **Depreciación automática** | ALTA | Alta | Línea recta, suma dígitos, etc. |
+| **Valor residual** | MEDIA | Baja | Cálculo del valor al final de vida útil |
+| **Revalorización** | BAJA | Media | Actualización de valor |
+| **Baja de activos** | MEDIA | Media | Retirar activos del sistema |
+| **Seguro de activos** | BAJA | Baja | Información de pólizas |
+| **Documentación** | BAJA | Baja | Facturas, contratos adjuntos |
+| **Asientos de depreciación automáticos** | ALTA | Alta | Generación automática de asientos |
+
+#### Estado Allegra Activos Fijos:
+```
+✅ Registro de activos fijos
+✅ Tangibles e intangibles
+✅ Categorías configurables
+✅ Métodos de depreciación
+✅ Depreciación automática
+✅ Valor residual
+✅ Revalorización
+✅ Baja de activos
+✅ Reportes de depreciación
+✅ Vinculación contable automática
+```
+
+---
+
+### 2.8 Módulo de Reportes
+
+#### ✅ Implementado en alegra-clone:
+- Dashboard principal
+- Reporte de ventas
+- Reporte de gastos
+- Reportes contables (Balance, Estado de Resultados)
+- Reporte de estado de cuenta (clientes/proveedores)
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Reportes fiscales** | ALTA | Alta | Declaración de impuestos |
+| **Libro de ventas** | ALTA | Media | Detalle de ventas por período |
+| **Libro de compras** | ALTA | Media | Detalle de compras por período |
+| **Reporte de inventario** | ALTA | Media | Estado actual del stock |
+| **Reporte de rentabilidad** | ALTA | Media | Margen por producto/cliente |
+| **Reporte de aging (vencidos)** | MEDIA | Media | Cuentas por cobrar/pagar vencidas |
+| **Reportes exportables** | ALTA | Baja | Excel, PDF |
+| **Reportes personalizables** | MEDIA | Alta | Dashboards custom |
+| **Gráficos avanzados** | MEDIA | Media | Visualizaciones mejoradas |
+| **Reportes programados** | BAJA | Alta | Envío automático por email |
+
+#### Estado Allegra Reportes:
+```
+✅ Dashboard
+✅ Reportes inteligentes
+✅ Reporte de ventas
+✅ Reporte de compras
+✅ Reporte de inventario
+✅ Reporte de rentabilidad
+✅ Libro de ventas
+✅ Libro de compras
+✅ Reportes fiscales
+✅ Estados de cuenta clientes/proveedores
+✅ Reportes exportables (Excel, PDF)
+✅ Historial de exportables
+✅ Reportes programados
+```
+
+---
+
+### 2.9 Módulo de Centro de Costos y Proyectos
+
+#### ❌ No Implementado en alegra-clone:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Centro de costos** | ALTA | Media | Agrupar ingresos/gastos por área |
+| **Sub-centros de costos** | MEDIA | Alta | Jerarquía de centros |
+| **Asignación a documentos** | ALTA | Media | Facturas, gastos con centro de costo |
+| **Reportes por centro de costo** | ALTA | Media | Rentabilidad por área/proyecto |
+| **Proyectos** | MEDIA | Alta | Seguimiento de proyectos |
+| **Presupuestos** | MEDIA | Alta | Comparativo vs real |
+
+#### Estado Allegra Centro de Costos:
+```
+✅ Centro de costos
+✅ Sub-centros (simulados por código)
+✅ Asignación a documentos
+✅ Reportes por centro de costo
+✅ Vinculación a facturas, gastos, ingresos
+✅ Centro de costo predefinido
+```
+
+---
+
+### 2.10 Módulo de Manufactura
+
+#### ✅ Implementado parcialmente en alegra-clone:
+- Listas de materiales (BoM)
+- Órdenes de producción
+- Consumo de materiales
+
+#### ❌ Funcionalidades Faltantes:
+
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Órdenes de producción completas** | ALTA | Alta | Workflow completo de producción |
+| **Control de calidad** | MEDIA | Alta | Inspección de productos terminados |
+| **Sub-ensambles** | MEDIA | Alta | BoM multinivel |
+| **Costos de mano de obra** | MEDIA | Media | Inclusion de MO en costos |
+| **Costos indirectos** | MEDIA | Media | CIF en producción |
+| **Reportes de producción** | ALTA | Media | Eficiencia, costos reales vs estándar |
+| **Integración con inventario** | ALTA | Alta | Movimientos automáticos |
+
+---
+
+### 2.11 Módulo POS (Punto de Venta)
+
+#### ✅ Implementado en alegra-clone:
+- POS Standard y Split
+- Carrito de compras
 - Búsqueda de productos
-- Cálculo automático de subtotal, ITBIS y total
-- Notificaciones toast al crear facturas (no modal)
-- Limpieza automática del carrito tras facturar exitosamente
-- Sistema de receipt/ticket para impresión
-- Indicador visual del modo de POS activo
+- Cobro y facturación
+- Configuración de impresión
+- Receipt/ticket
 
-#### Configuración de Impresión:
-- `TICKET`: 80mm - Tirilla
-- `HALF_LETTER`: Media carta (148mm)
-- `LETTER`: Carta completa (216mm)
-- Opciones: Copias de impresión, auto-impresión, mostrar logo
+#### ❌ Funcionalidades Faltantes:
 
-#### Configuración de Impuestos:
-- Tasa de impuesto configurable (%)
-- Impuesto incluido/excluido
-
-#### API: `/api/pos/config` (GET/POST)
-#### Página: `/configuracion/pos`
-
-### 5. Módulo de Caja (Cobros)
-El módulo de caja sirve para el modo SPLIT del POS:
-- Lista de facturas pendientes de pago (estado SENT)
-- Búsqueda de facturas por número o cliente
-- Filtro por estado (SENT, PARTIAL)
-- Modal de checkout para realizar cobros
-- Integración en tiempo real con el POS (actualización automática de facturas)
-- Estados de facturas: SENT, PARTIAL, PAID, CANCELLED
-
-#### Página: `/caja`
-
-### 6. Sistema de Permisos y Roles
-- Modelo `Role` con permisos personalizados por organización.
-- Sistema de `Membership` que relaciona usuarios con organizaciones y roles.
-- Sistema de roles del sistema: ADMIN, CONTADOR, VENDEDOR, USER.
-
-### 7. Contabilidad Integrada
-- Plan de cuentas jerárquico (`AccountingAccount` con parentId).
-- Asientos contables automáticos (`JournalEntry`, `JournalLine`).
-- Integración con facturas y gastos (cada documento genera su asiento contable).
-- Estados: DRAFT, POSTED, CANCELLED.
-
-### 8. Módulo Bancario
-- Gestión de cuentas bancarias con tipos: CHECKING, SAVINGS, CASH, CREDIT.
-- Conciliación bancaria.
-- Transferencias entre cuentas.
-- Estados: ACTIVE, INACTIVE, CLOSED.
-
-### 9. Correcciones Importantes Recientes (Depuradas)
-- **Cloudflare Drop:** El antiguo `proxy.ts`, envoltorios Workers y Wrangler fueron eliminados de raíz. La aplicación corre pura en una VM tradicional o plataformas como **Netlify/Vercel**.
-- **Issue Fechas Prisma ("premature end of input"):** Las datas del HTML `type="date"` (formato `YYYY-MM-DD`) pasaban directo a un prisma `DateTime`. La aplicación resolvió ello usando de proxy a *Zod* invocando `z.coerce.date()` forzando a JS Dates universales.
-- **Autocompletados Activos:** Todos los selectores de Productos, Categorías y Clientes se mejoraron mediante la introducción del componente `ContactSearch` o componentes autocompletables anidados, mitigando problemas de interfaces limitantes al escalar la base de datos de ítems.
-- **Notificaciones POS:** Cambio de modal a toast notification para confirmaciones de facturación en modo SPLIT.
-- **Carrito POS:** Limpieza automática del carrito después de facturar exitosamente.
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Offline POS** | MEDIA | Muy Alta | Funcionar sin conexión |
+| **MúltiplesPOS** | MEDIA | Alta | Varios puntos de venta |
+| **Sincronización entrePOS** | MEDIA | Alta | Inventario compartido |
+| **Teclado rápido** | MEDIA | Baja | Atajos para productos frecuentes |
+| **Descuentos rápidos** | ALTA | Baja | Descuentos en el momento |
+| **Cuadre de caja** | ALTA | Media | Reporte de cierre de turno |
+| **Reportes dePOS** | MEDIA | Media | Ventas por terminal |
+| **Pagos parciales** | ALTA | Media | Separar pagos |
 
 ---
 
-## 🔒 Seguridad
+### 2.12 Módulo de Órdenes de Servicio (Taller)
 
-### Headers de Seguridad Configurados
-En `next.config.ts` se configuran los siguientes headers:
-- X-Frame-Options: DENY
-- X-Content-Type-Options: nosniff
-- Referrer-Policy: strict-origin-when-cross-origin
-- X-XSS-Protection: 1; mode=block
-- Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+#### ✅ Implementado parcialmente en alegra-clone:
+- Recepción de vehículos
+- Inventario del vehículo
+- Daños preexistentes
+- Trabajos a realizar
+- Nivel de combustible
+- Historial por vehículo
 
-### Validación de Variables de Entorno
-- `lib/env.ts` usa Zod para validar todas las variables de entorno al arranque.
-- Esquema requiere: DATABASE_URL (URL válida), AUTH_SECRET (mínimo 32 caracteres), NEXT_PUBLIC_APP_URL.
+#### ❌ Funcionalidades Faltantes:
 
----
-
-## 🧪 Testing
-
-### Stack de Testing
-- **Vitest** para tests unitarios con jsdom.
-- **Playwright** para tests end-to-end.
-- **Testing Library** para tests de componentes React.
-
-### Tests Existentes
-- `__tests__/utils.test.ts` - Tests de utilidades
-- `__tests__/schemas.test.ts` - Tests de esquemas Zod
-- `__tests__/invoice.test.ts` - Tests de facturas
+| Funcionalidad | Prioridad | Complejidad | Descripción |
+|---------------|-----------|-------------|-------------|
+| **Seguimiento de estado** | ALTA | Media | Estados: Recibido, Diagnóstico, En proceso, Terminado, Entregado |
+| **Asignación de mecánico** | ALTA | Baja | Quién hace cada trabajo |
+| **Estimados de tiempo** | MEDIA | Media | Tiempo estimado por trabajo |
+| **Validación firma digital** | MEDIA | Media | Firma del cliente |
+| **Fotos del vehículo** | ALTA | Media | Galería por orden |
+| **Garantías** | MEDIA | Media | Gestión de garantías |
+| **Historial completo** | ALTA | Media | Todas las visitas del cliente |
+| **Notificaciones al cliente** | MEDIA | Alta | Email/SMS de estado |
+| **Conversión a factura** | ALTA | Media | Generar factura desde OS |
 
 ---
 
-## 🛠 Directrices para Futuras Iteraciones o Mantenimiento IA
+## 3. Roadmap de Desarrollo
 
-Si un nuevo agente (tú) retoma este proyecto, considera:
+### 3.1 Prioridad ALTA (Inmediato)
 
-1. **Al interactuar con Formularios de Datos:** Sigue el patrón `useActionState`. Muta en un `"use server"` module dentro de `app/actions/`. Y no uses endpoints en `app/api/...` para mutaciones; utiliza los actions debido a sus características nativas de form binding y simplicidad.
+| # | Funcionalidad | Módulo | Esfuerzo Estimado |
+|---|---------------|--------|-------------------|
+| 1 | Multi-bodegas + Transferencias | Inventario | 3-4 sprints |
+| 2 | Importación/Exportación Excel | Inventario, Contactos | 2 sprints |
+| 3 | Alertas de stock bajo | Inventario | 1 sprint |
+| 4 | Variantes de productos | Inventario | 3-4 sprints |
+| 5 | Envío de facturas por email/WhatsApp | Ventas | 2 sprints |
+| 6 | Notas crédito/débito completas | Ventas | 2 sprints |
+| 7 | Conciliación bancaria inteligente | Bancos | 4-5 sprints |
+| 8 | Centro de costos | Contabilidad | 2 sprints |
+| 9 | Certificados de retención | Contabilidad | 2 sprints |
+| 10 | Activos fijos con depreciación | Contabilidad | 4-5 sprints |
 
-2. **Consultar Datos (Listados):** La aplicación aún depende de React Query vía endpoints (ej. `/api/invoices`) dentro de `useDatabase.ts`. Si vas a refactorizar esto a futuro, puedes reemplazarlos por Server Components asíncronos en los `page.tsx`. Si el tiempo u optimización no es urgente, mantén `useDatabase.ts`.
+### 3.2 Prioridad MEDIA (Corto-Mediano Plazo)
 
-3. **Prisma Transaccional:** Cada vez que actualices una factura y sus *items*, invoca a `$transaction` eliminando los ítems anteriores (`deleteMany`) y construyendo iterativamente (`create`) los nuevos. Esto por la seguridad entre consistencia e inventarios futuros.
+| # | Funcionalidad | Módulo | Esfuerzo Estimado |
+|---|---------------|--------|-------------------|
+| 1 | Retenciones de compra/venta | Compras | 2 sprints |
+| 2 | Flujo de caja proyectado | Tesorería | 3 sprints |
+| 3 | Reportes fiscales básicos | Reportes | 3 sprints |
+| 4 | Descuentos por ítem | Ventas | 1 sprint |
+| 5 | Crédito y condiciones por cliente | Contactos | 2 sprints |
+| 6 | Conexión bancaria en tiempo real | Bancos | 5-6 sprints |
+| 7 | Ajustes por diferencia en cambio | Contabilidad | 2 sprints |
+| 8 | Reportes de rentabilidad | Reportes | 2 sprints |
+| 9 | Seguimiento de estado OS | Taller | 2 sprints |
+| 10 | Asignación de mecánico | Taller | 1 sprint |
 
-4. **Entorno Netlify:** El proyecto puede ser publicado haciendo simplemente un `npm run build` apuntando a Netlify con sus respectivas variables de entorno verificadas en `.env` (AUTH_URL, AUTH_SECRET, DATABASE_URL y cuentas de providers como Google o Github). El error config nextJS de Cloudflare Server-side fue solventado.
+### 3.3 Prioridad BAJA (Largo Plazo)
 
-5. **Zod v4:** El proyecto utiliza Zod v4 (zod ^4.3.6). Asegúrate de usar las últimas APIs de coerción como `z.coerce.date()`, `z.coerce.number()`.
-
-6. **Decimal.js:** Para cálculos financieros precisos, utiliza `Decimal` de decimal.js en lugar de operaciones con floats nativos.
-
-7. **Modo SPLIT del POS:** Si necesitas modificar el flujo de facturación/cobro, recuerda que el POS (modo SPLIT) solo crea facturas y el módulo `/caja` es quien gestiona los cobros. Ambos deben estar sincronizados.
-
-8. **Hook useRealtimeTransactions:** El módulo de caja usa este hook para recibir actualizaciones en tiempo real de las facturas creadas en el POS. Si necesitas modificar la lógica de sincronización, revisa este hook.
-
-Cualquier cambio futuro a infra o la BD exige que antes se actualice `prisma/schema.prisma` y se emita el flujo regular: `npx prisma db push` o `npx prisma migrate dev`.
+| # | Funcionalidad | Módulo | Esfuerzo Estimado |
+|---|---------------|--------|-------------------|
+| 1 | Portal del cliente | Contactos | 6+ sprints |
+| 2 | Pagos en línea | Ventas | 4 sprints |
+| 3 | Integración e-commerce | Ventas | 8+ sprints |
+| 4 | Facturas recurrentes | Ventas | 3 sprints |
+| 5 | Calendario tributario | Contabilidad | 2 sprints |
+| 6 | Control de calidad (manufactura) | Manufactura | 4 sprints |
+| 7 | POS offline | POS | 8+ sprints |
+| 8 | Múltiples POS | POS | 4 sprints |
+| 9 | Reportes programados | Reportes | 3 sprints |
+| 10 | Nóminas | Tesorería | 10+ sprints |
 
 ---
 
-## 📋 Estado de Módulos
+## 4. Análisis de Brechas Técnicas
 
-| Módulo | Estado | Notas |
-|--------|--------|-------|
-| Autenticación | ✅ Completo | NextAuth + Credentials + JWT |
-| Multitenant | ✅ Completo | Organización + Memberships |
-| Roles/Permisos | ✅ Completo | Roles personalizados + SystemRoles |
-| Contactos | ✅ Completo | Clientes/Proveedores con tipos |
-| Productos | ✅ Completo | Inventario con categorías |
-| Facturas | ✅ Completo | Con asientos contables |
-| Cotizaciones | ✅ Completo | Estados: DRAFT, SENT, ACCEPTED, REJECTED |
-| Gastos | ✅ Completo | Con categorías y tipos |
-| Ingresos | ✅ Completo | Con banco destino |
-| Pagos | ✅ Completo | Vinculados a facturas/gastos |
-| Contabilidad | ✅ Completo | Plan de cuentas + Asientos |
-| Bancos | ✅ Completo | Conciliación + Transferencias |
-| Configuración | ✅ Completo | Roles, usuarios, impuestos, numeraciones, POS |
-| Reportes | ✅ Completo | Estados de cuenta + Contables (Balance, Resultados) |
-| POS | ✅ Completo | Punto de venta con checkout, receipt e impresión configurable |
-| Caja | ✅ Completo | Cobro de facturas pendientes (modo SPLIT) |
+### 4.1 Backend/API
+
+| Área | Estado | Detalle |
+|------|--------|---------|
+| REST API | ✅ | Endpoints REST para operaciones CRUD |
+| Server Actions | ✅ Parcial | Implementadas en actions/ |
+| Webhooks | ❌ | No implementado |
+| Events/Subscriptions | ❌ | No implementado |
+| Rate Limiting | ✅ | Implementado en api-helpers |
+| Caching | ⚠️ | React Query con invalidación manual |
+| Batch Operations | ❌ | No implementado |
+
+### 4.2 Frontend
+
+| Área | Estado | Detalle |
+|------|--------|---------|
+| Server Components | ⚠️ | Uso parcial |
+| Client Components | ✅ | Forms, modals |
+| Optimistic Updates | ❌ | No implementado |
+| Infinite Scroll | ⚠️ | Uso parcial |
+| Real-time Updates | ⚠️ | Solo Cash Register |
+| Drag & Drop | ❌ | No implementado |
+| Rich Text Editor | ❌ | No implementado |
+| PDF Viewer | ❌ | No implementado |
+
+### 4.3 Base de Datos
+
+| Área | Estado | Detalle |
+|------|--------|---------|
+| Índices | ⚠️ | Creados en los campos principales |
+| Full-text Search | ❌ | No implementado |
+| Soft Deletes | ❌ | No implementado |
+| Audit Logs | ✅ | ActivityLog implementado |
+| migrations | ✅ | Versionadas |
+| Seed data | ✅ | Implementado |
+
+---
+
+## 5. Recomendaciones
+
+### 5.1 Corto Plazo (1-3 meses)
+1. **Completar módulos críticos:** Multi-bodegas, Centro de costos, Retenciones
+2. **Mejorar experiencia de usuario:** Import/Export, Notificaciones
+3. **Reportes:** Agregar reportes fiscales y de rentabilidad
+
+### 5.2 Mediano Plazo (3-6 meses)
+1. **Integraciones bancarias:** Conexión con bancos locales
+2. **Activos fijos:** Módulo completo
+3. **POS mejorado:** Descuentos, cuadre de caja
+4. **Órdenes de servicio:** Seguimiento completo
+
+### 5.3 Largo Plazo (6-12 meses)
+1. **Integraciones externas:** E-commerce, pagos en línea
+2. **Módulo de nómina**
+3. **Portal del cliente**
+4. **POS offline**
+
+---
+
+## 6. Conclusión
+
+El proyecto **alegra-clone** tiene una base sólida comparable con aproximadamente **65-70%** de las funcionalidades no-facturación de Alegra. Las principales brechas están en:
+
+1. **Gestión avanzada de inventario** (multi-bodegas, variantes)
+2. **Tesorería** (conciliación bancaria inteligente)
+3. **Activos fijos** (módulo completamente faltante)
+4. **Reportes** (especialmente fiscales)
+5. **Centro de costos**
+
+Se recomienda priorizar el desarrollo de las funcionalidades marcadas como ALTA en el roadmap para alcanzar un nivel de funcionalidad comparable con Alegra en el menor tiempo posible.
+
+---
+
+*Documento generado para uso interno del equipo de desarrollo.*

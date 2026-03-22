@@ -6,27 +6,39 @@ import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Download, CheckCircle2, Clock, Edit, Trash2, TrendingUp } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useIncomes, useDeleteIncome } from "@/hooks/useDatabase";
+import { useToast } from "@/components/ui/Toast";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import Link from "next/link";
 
 export default function IngresosPage() {
-  const { data: incomes, isLoading } = useIncomes();
+  const { data: incomes, isLoading, refetch } = useIncomes();
   const deleteIncome = useDeleteIncome();
+  const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; income: any }>({ open: false, income: null });
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este ingreso?")) {
-      try {
-        await deleteIncome.mutateAsync(id);
-      } catch (error: any) {
-        alert("Error al eliminar: " + error.message);
-      }
+  const handleDeleteClick = (income: any) => {
+    setDeleteModal({ open: true, income });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.income) return;
+    try {
+      await deleteIncome.mutateAsync(deleteModal.income.id);
+      showToast("success", "Ingreso eliminado exitosamente");
+      setDeleteModal({ open: false, income: null });
+      refetch();
+    } catch (error: any) {
+      showToast("error", error.message || "Error al eliminar");
     }
   };
 
   const filteredIncomes = useMemo(() => {
     if (!incomes) return [];
     return incomes.filter((income: any) =>
-      income.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      income.number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       income.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       income.client?.name?.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -111,7 +123,7 @@ export default function IngresosPage() {
                   <div className={cn(
                     "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold",
                     income.status === "RECEIVED" ? "bg-emerald-50 text-emerald-600" : 
-                    income.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-slate-100 text-slate-500"
+                      income.status === "PENDING" ? "bg-amber-50 text-amber-600" : "bg-slate-100 text-slate-500"
                   )}>
                     {income.status === "RECEIVED" && <CheckCircle2 size={12} className="mr-1" />}
                     {income.status === "PENDING" && <Clock size={12} className="mr-1" />}
@@ -121,7 +133,7 @@ export default function IngresosPage() {
                 <TableCell className="text-right">
                   <div className="flex justify-end space-x-2">
                     <button
-                      onClick={() => handleDelete(income.id)}
+                      onClick={() => handleDeleteClick(income)}
                       className="p-1 hover:bg-slate-100 rounded-md text-slate-400 hover:text-rose-600 transition-colors"
                     >
                       <Trash2 size={16} />
@@ -148,6 +160,16 @@ export default function IngresosPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+        title="Eliminar Ingreso"
+        description={`¿Estás seguro de que deseas eliminar el ingreso ${deleteModal.income?.number}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={handleConfirmDelete}
+        loading={deleteIncome.isPending}
+      />
     </AppLayout>
   );
 }

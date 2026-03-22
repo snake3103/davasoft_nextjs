@@ -4,15 +4,24 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import {
     Save,
     X,
-    ChevronDown,
     Upload,
     CreditCard,
-    Building2,
-    Calendar as CalendarIcon
+    Building2
 } from "lucide-react";
 import Link from "next/link";
+import { Select } from "@/components/ui/Select";
+import { useState } from "react";
 
 export default function NuevoGasto() {
+    const [formData, setFormData] = useState({
+        provider: "",
+        category: "",
+        date: new Date().toISOString().split('T')[0],
+        amount: "",
+        paymentMethod: "CASH",
+        observations: "",
+    });
+
     return (
         <AppLayout>
             <div className="space-y-6">
@@ -45,28 +54,32 @@ export default function NuevoGasto() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700">Proveedor</label>
-                                    <div className="relative">
-                                        <select className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-4 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
-                                            <option value="">Selecciona un proveedor...</option>
-                                            <option>Amazon Web Services</option>
-                                            <option>Enel Colombia</option>
-                                            <option>Empresas Públicas</option>
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                                    </div>
+                                    <Select
+                                        value={formData.provider}
+                                        onChange={(val) => setFormData({ ...formData, provider: val })}
+                                        options={[
+                                            { value: "", label: "Selecciona un proveedor...", description: "Sin proveedor" },
+                                            { value: "aws", label: "Amazon Web Services", description: "Infraestructura en la nube" },
+                                            { value: "enel", label: "Enel Colombia", description: "Servicios de energía" },
+                                            { value: "epm", label: "Empresas Públicas", description: "Acueducto y alcantarillado" },
+                                        ]}
+                                        placeholder="Buscar proveedor..."
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700">Categoría de Gasto</label>
-                                    <div className="relative">
-                                        <select className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-4 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
-                                            <option value="">Selecciona una categoría...</option>
-                                            <option>Servicios Públicos</option>
-                                            <option>Arrendamientos</option>
-                                            <option>Sueldos y Salarios</option>
-                                            <option>Software y Cloud</option>
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                                    </div>
+                                    <Select
+                                        value={formData.category}
+                                        onChange={(val) => setFormData({ ...formData, category: val })}
+                                        options={[
+                                            { value: "", label: "Selecciona una categoría...", description: "Sin categoría" },
+                                            { value: "servicios", label: "Servicios Públicos", description: "Agua, luz, gas, internet" },
+                                            { value: "arrendamientos", label: "Arrendamientos", description: "Alquiler de espacios" },
+                                            { value: "sueldos", label: "Sueldos y Salarios", description: "Nómina de empleados" },
+                                            { value: "software", label: "Software y Cloud", description: "Suscripciones tecnológicas" },
+                                        ]}
+                                        placeholder="Buscar categoría..."
+                                    />
                                 </div>
                             </div>
 
@@ -75,7 +88,8 @@ export default function NuevoGasto() {
                                     <label className="text-sm font-bold text-slate-700">Fecha</label>
                                     <input
                                         type="date"
-                                        defaultValue={new Date().toISOString().split('T')[0]}
+                                        value={formData.date}
+                                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                                         className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all"
                                     />
                                 </div>
@@ -86,20 +100,24 @@ export default function NuevoGasto() {
                                         <input
                                             type="number"
                                             placeholder="0.00"
+                                            value={formData.amount}
+                                            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                                             className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-8 pr-4 text-sm outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all"
                                         />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-slate-700">Método de Pago</label>
-                                    <div className="relative">
-                                        <select className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 pl-4 pr-10 text-sm appearance-none outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all">
-                                            <option>Efectivo</option>
-                                            <option>Transferencia Bancaria</option>
-                                            <option>Tarjeta de Crédito</option>
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                                    </div>
+                                    <Select
+                                        value={formData.paymentMethod}
+                                        onChange={(val) => setFormData({ ...formData, paymentMethod: val })}
+                                        options={[
+                                            { value: "CASH", label: "Efectivo", description: "Pago en efectivo" },
+                                            { value: "TRANSFER", label: "Transferencia Bancaria", description: "Transferencia desde cuenta" },
+                                            { value: "CARD", label: "Tarjeta de Crédito", description: "Pago con tarjeta" },
+                                        ]}
+                                        placeholder="Seleccionar método..."
+                                    />
                                 </div>
                             </div>
 
@@ -108,6 +126,8 @@ export default function NuevoGasto() {
                                 <textarea
                                     rows={3}
                                     placeholder="Escribe aquí detalles adicionales del gasto..."
+                                    value={formData.observations}
+                                    onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
                                     className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all resize-none"
                                 ></textarea>
                             </div>

@@ -6,36 +6,48 @@ import { Table, TableRow, TableCell } from "@/components/ui/Table";
 import { Plus, Search, Filter, Download, MoreHorizontal, Receipt, CheckCircle2, Clock, Edit, Trash2 } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
 import { ExpenseModal } from "@/components/modals/ExpenseModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 
 import { useExpenses, useDeleteExpense } from "@/hooks/useDatabase";
 
 export default function GastosPage() {
-  const { data: expenses, isLoading } = useExpenses();
+  const { data: expenses, isLoading, refetch } = useExpenses();
   const deleteExpense = useDeleteExpense();
+  const { showToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Modal de eliminación
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; expense: any }>({ open: false, expense: null });
 
   const handleSaveExpense = async (formData: any) => {
     console.log("Saving expense:", formData);
     setIsModalOpen(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas eliminar este gasto?")) {
-      try {
-        await deleteExpense.mutateAsync(id);
-      } catch (error: any) {
-        alert("Error al eliminar: " + error.message);
-      }
+  const handleDeleteClick = (expense: any) => {
+    setDeleteModal({ open: true, expense });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.expense) return;
+    try {
+      await deleteExpense.mutateAsync(deleteModal.expense.id);
+      showToast("success", "Gasto eliminado exitosamente");
+      setDeleteModal({ open: false, expense: null });
+      refetch();
+    } catch (error: any) {
+      showToast("error", error.message || "Error al eliminar");
     }
   };
 
   const filteredExpenses = useMemo(() => {
     if (!expenses) return [];
     return expenses.filter((e: any) =>
-      e.provider.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.category?.name.toLowerCase().includes(searchQuery.toLowerCase())
+      e.provider?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      e.category?.name?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [expenses, searchQuery]);
 
@@ -107,7 +119,7 @@ export default function GastosPage() {
                       <Edit size={16} />
                     </button>
                     <button
-                      onClick={() => handleDelete(expense.id)}
+                      onClick={() => handleDeleteClick(expense)}
                       className="p-1 hover:bg-slate-100 rounded-md text-slate-400 hover:text-rose-600 transition-colors"
                     >
                       <Trash2 size={16} />
@@ -129,6 +141,16 @@ export default function GastosPage() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveExpense}
         initialData={editingExpense}
+      />
+
+      <ConfirmDialog
+        open={deleteModal.open}
+        onOpenChange={(open) => setDeleteModal({ ...deleteModal, open })}
+        title="Eliminar Gasto"
+        description={`¿Estás seguro de que deseas eliminar el gasto ${deleteModal.expense?.number}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        onConfirm={handleConfirmDelete}
+        loading={deleteExpense.isPending}
       />
     </AppLayout>
   );
